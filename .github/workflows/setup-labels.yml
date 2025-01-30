@@ -3,6 +3,9 @@ name: Setup Labels
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   setup-labels:
     runs-on: ubuntu-latest
