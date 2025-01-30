@@ -7,8 +7,6 @@
 
 🚀 A powerful VSCode extension for seamless Kibela integration. Access, search, and manage your Kibela notes directly from your development environment.
 
-![Demo GIF placeholder]()
-
 ## ✨ Features
 
 - 🔍 **Quick Search**: Instantly find notes with real-time search
