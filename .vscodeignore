@@ -5,10 +5,5 @@
 **/tsconfig.json
 **/.eslintrc.json
 **/*.map
-src/**/*.ts
 .github/**
 .git/**
-node_modules/**
-!node_modules/graphql/**
-!node_modules/graphql-request/**
-!node_modules/marked/**
