@@ -26,9 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build
-        run: npm run build
-
       - name: Package Extension
         run: npm run package
 
@@ -51,4 +48,4 @@ jobs:
           git config --local user.name "GitHub Action"
           git add CHANGELOG.md
           git commit -m "docs: update CHANGELOG.md for ${{ github.event.release.tag_name }}"
-          git push 
+          git push
