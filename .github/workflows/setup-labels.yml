@@ -1,0 +1,23 @@
+name: Setup Labels
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create/Update Labels
+        run: |
+          # Delete all existing labels
+          gh label list | awk '{print $1}' | xargs -I {} gh label delete {} --yes || true
+
+          # Create semver labels
+          gh label create major --color "#FF0000" --description "Breaking changes that require major version bump"
+          gh label create minor --color "#00FF00" --description "New features that require minor version bump"
+          gh label create patch --color "#0000FF" --description "Bug fixes that require patch version bump"
+          gh label create skip-release --color "#808080" --description "Changes that don't require a release"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
