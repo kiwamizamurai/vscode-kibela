@@ -1,0 +1,152 @@
+name: Update Draft Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  update-draft:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PR Label
+        id: label
+        run: |
+          LABELS=$(gh pr view ${{ github.event.pull_request.number }} --json labels -q '.labels[].name' || echo '')
+          if echo "$LABELS" | grep -q "major"; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$LABELS" | grep -q "minor"; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          elif echo "$LABELS" | grep -q "patch"; then
+            echo "type=patch" >> $GITHUB_OUTPUT
+          else
+            echo "type=skip" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Get Current Version
+        id: version
+        run: |
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+          echo "current=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Calculate New Version
+        id: semver
+        if: steps.label.outputs.type != 'skip'
+        run: |
+          CURRENT=${{ steps.version.outputs.current }}
+          TYPE=${{ steps.label.outputs.type }}
+          
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          
+          case $TYPE in
+            "major")
+              NEW_VERSION="$((MAJOR + 1)).0.0"
+              ;;
+            "minor")
+              NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+              ;;
+            "patch")
+              NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+              ;;
+          esac
+          
+          echo "new=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Update or Create Draft Release
+        if: steps.label.outputs.type != 'skip'
+        run: |
+          # Get PR info
+          PR_INFO=$(gh pr view ${{ github.event.pull_request.number }} --json title,author,url)
+          PR_TITLE=$(echo "$PR_INFO" | jq -r '.title')
+          PR_AUTHOR=$(echo "$PR_INFO" | jq -r '.author.login')
+          PR_URL=$(echo "$PR_INFO" | jq -r '.url')
+          TYPE=${{ steps.label.outputs.type }}
+          
+          # Format new entry
+          NEW_ENTRY="- ${PR_TITLE} ([#${{ github.event.pull_request.number }}](${PR_URL})) by @${PR_AUTHOR}"
+          
+          # Check if draft release exists and get its tag
+          DRAFT_TAG=$(gh release list --limit 1 --exclude-drafts=false --json isDraft,tagName -q '.[] | select(.isDraft == true) | .tagName' || echo '')
+          
+          if [ -n "$DRAFT_TAG" ]; then
+            # Get current draft release notes
+            CURRENT_NOTES=$(gh release view "$DRAFT_TAG" --json body -q '.body' || echo '')
+            
+            # Initialize release notes with version header
+            RELEASE_NOTES="## v${{ steps.semver.outputs.new }}\n\n"
+            
+            # Add new entry to appropriate section
+            if echo "$CURRENT_NOTES" | grep -q "### Breaking Changes"; then
+              if [ "$TYPE" = "major" ]; then
+                RELEASE_NOTES+="### Breaking Changes\n${NEW_ENTRY}\n"
+                RELEASE_NOTES+="$(echo "$CURRENT_NOTES" | sed -n '/### Breaking Changes/,/### /p' | tail -n +2 | sed '/^### /d')"
+              else
+                RELEASE_NOTES+="### Breaking Changes\n"
+                RELEASE_NOTES+="$(echo "$CURRENT_NOTES" | sed -n '/### Breaking Changes/,/### /p' | tail -n +2 | sed '/^### /d')"
+              fi
+            elif [ "$TYPE" = "major" ]; then
+              RELEASE_NOTES+="### Breaking Changes\n${NEW_ENTRY}\n"
+            fi
+            
+            RELEASE_NOTES+="\n"
+            
+            if echo "$CURRENT_NOTES" | grep -q "### New Features"; then
+              if [ "$TYPE" = "minor" ]; then
+                RELEASE_NOTES+="### New Features\n${NEW_ENTRY}\n"
+                RELEASE_NOTES+="$(echo "$CURRENT_NOTES" | sed -n '/### New Features/,/### /p' | tail -n +2 | sed '/^### /d')"
+              else
+                RELEASE_NOTES+="### New Features\n"
+                RELEASE_NOTES+="$(echo "$CURRENT_NOTES" | sed -n '/### New Features/,/### /p' | tail -n +2 | sed '/^### /d')"
+              fi
+            elif [ "$TYPE" = "minor" ]; then
+              RELEASE_NOTES+="### New Features\n${NEW_ENTRY}\n"
+            fi
+            
+            RELEASE_NOTES+="\n"
+            
+            if echo "$CURRENT_NOTES" | grep -q "### Bug Fixes"; then
+              if [ "$TYPE" = "patch" ]; then
+                RELEASE_NOTES+="### Bug Fixes\n${NEW_ENTRY}\n"
+                RELEASE_NOTES+="$(echo "$CURRENT_NOTES" | sed -n '/### Bug Fixes/,/### /p' | tail -n +2 | sed '/^### /d')"
+              else
+                RELEASE_NOTES+="### Bug Fixes\n"
+                RELEASE_NOTES+="$(echo "$CURRENT_NOTES" | sed -n '/### Bug Fixes/,/### /p' | tail -n +2 | sed '/^### /d')"
+              fi
+            elif [ "$TYPE" = "patch" ]; then
+              RELEASE_NOTES+="### Bug Fixes\n${NEW_ENTRY}\n"
+            fi
+            
+            # Update existing draft
+            gh release edit "$DRAFT_TAG" \
+              --title "v${{ steps.semver.outputs.new }}" \
+              --notes "$RELEASE_NOTES"
+          else
+            # Create new draft with initial section
+            RELEASE_NOTES="## v${{ steps.semver.outputs.new }}\n\n"
+            case $TYPE in
+              "major")
+                RELEASE_NOTES+="### Breaking Changes\n${NEW_ENTRY}\n\n### New Features\n\n### Bug Fixes"
+                ;;
+              "minor")
+                RELEASE_NOTES+="### Breaking Changes\n\n### New Features\n${NEW_ENTRY}\n\n### Bug Fixes"
+                ;;
+              "patch")
+                RELEASE_NOTES+="### Breaking Changes\n\n### New Features\n\n### Bug Fixes\n${NEW_ENTRY}"
+                ;;
+            esac
+            
+            gh release create "v${{ steps.semver.outputs.new }}" \
+              --draft \
+              --title "v${{ steps.semver.outputs.new }}" \
+              --notes "$RELEASE_NOTES"
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
