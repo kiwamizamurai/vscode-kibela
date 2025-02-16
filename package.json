@@ -2,7 +2,7 @@
   "name": "kibela-vscode",
   "displayName": "Kibela",
   "description": "Kibela integration for VS Code",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "publisher": "kiwamizamurai-vscode",
   "author": {
     "name": "kiwamizamurai",
@@ -92,17 +92,17 @@
       "view/title": [
         {
           "command": "kibela.showSearch",
-          "when": "view == myNotes",
+          "when": "view == myNotes && viewContainer == kibela-explorer",
           "group": "navigation"
         },
         {
           "command": "kibela.refreshGroups",
-          "when": "view == kibelaGroups",
+          "when": "view == kibelaGroups && viewContainer == kibela-explorer",
           "group": "navigation"
         },
         {
           "command": "kibela.authenticate",
-          "when": "!kibela:authenticated",
+          "when": "!kibela:authenticated && viewContainer == kibela-explorer",
           "group": "navigation"
         }
       ]
