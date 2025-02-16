@@ -7,24 +7,37 @@ interface TreeSection {
   items: KibelaNote[];
 }
 
+interface AuthItem {
+  type: 'auth';
+  label: string;
+  command: string;
+}
+
 export class NoteTreeDataProvider
-  implements vscode.TreeDataProvider<TreeSection | KibelaNote>
+  implements vscode.TreeDataProvider<TreeSection | KibelaNote | AuthItem>
 {
   private _onDidChangeTreeData: vscode.EventEmitter<
-    TreeSection | KibelaNote | undefined
-  > = new vscode.EventEmitter<TreeSection | KibelaNote | undefined>();
+    TreeSection | KibelaNote | AuthItem | undefined
+  > = new vscode.EventEmitter<
+    TreeSection | KibelaNote | AuthItem | undefined
+  >();
   readonly onDidChangeTreeData: vscode.Event<
-    TreeSection | KibelaNote | undefined
+    TreeSection | KibelaNote | AuthItem | undefined
   > = this._onDidChangeTreeData.event;
 
   private sections: TreeSection[] = [];
   private notes: KibelaNote[] = [];
-  private _view: vscode.TreeView<TreeSection | KibelaNote> | undefined;
+  private _view:
+    | vscode.TreeView<TreeSection | KibelaNote | AuthItem>
+    | undefined;
   private searchBox: vscode.InputBox | undefined;
   private searchResults: KibelaNote[] = [];
   private isLoading = false;
+  private logger: vscode.OutputChannel;
 
   constructor(private kibelaClient: KibelaClient) {
+    this.logger = vscode.window.createOutputChannel('Kibela Notes');
+
     // Create tree view with search box in title
     this._view = vscode.window.createTreeView('myNotes', {
       treeDataProvider: this,
@@ -32,7 +45,35 @@ export class NoteTreeDataProvider
     });
 
     // Set the view title
-    this._view.title = 'KIBELA NOTES';
+    if (this._view) {
+      this._view.title = 'KIBELA NOTES';
+    }
+
+    // Register auth commands
+    vscode.commands.registerCommand('kibela.login', async () => {
+      const team = await vscode.window.showInputBox({
+        prompt: 'Enter your Kibela team name',
+        placeHolder: 'e.g. example',
+      });
+      const token = await vscode.window.showInputBox({
+        prompt: 'Enter your Kibela API token',
+        password: true,
+      });
+      if (team && token) {
+        await this.kibelaClient.login(team, token);
+        await this.refresh();
+      }
+    });
+
+    vscode.commands.registerCommand('kibela.logout', async () => {
+      await this.kibelaClient.logout();
+      await this.refresh();
+    });
+
+    // Listen for auth state changes
+    this.kibelaClient.onDidChangeAuthState(() => {
+      this.refresh();
+    });
 
     // Register search command
     vscode.commands.registerCommand('kibela.showSearch', async () => {
@@ -69,15 +110,25 @@ export class NoteTreeDataProvider
     const recentlyViewed = await this.kibelaClient.getRecentlyViewedNotes();
     const likedNotes = await this.kibelaClient.getLikedNotes();
 
+    // 不正なノートを除外
+    const isValidNote = (note: KibelaNote): boolean => {
+      return (
+        note && typeof note === 'object' && 'id' in note && 'title' in note
+      );
+    };
+
     // Recently Viewed内の重複を削除（最初に出てきたものを残す）
     const seenIds = new Set<string>();
     const uniqueRecentlyViewed = recentlyViewed.filter((note) => {
-      if (seenIds.has(note.id)) {
+      if (!isValidNote(note) || seenIds.has(note.id)) {
         return false;
       }
       seenIds.add(note.id);
       return true;
     });
+
+    // 不正なノートを除外
+    const validLikedNotes = likedNotes.filter(isValidNote);
 
     this.sections = [
       {
@@ -99,7 +150,7 @@ export class NoteTreeDataProvider
           'Liked Notes',
           vscode.TreeItemCollapsibleState.Expanded
         ),
-        items: likedNotes,
+        items: validLikedNotes,
       },
     ];
 
@@ -118,36 +169,50 @@ export class NoteTreeDataProvider
     this.notes = [
       ...myNotes,
       ...uniqueRecentlyViewed,
-      ...likedNotes,
+      ...validLikedNotes,
       ...this.searchResults,
     ];
   }
 
-  getTreeItem(element: TreeSection | KibelaNote): vscode.TreeItem {
+  getTreeItem(element: TreeSection | KibelaNote | AuthItem): vscode.TreeItem {
     if (this.isLoading) {
-      return new vscode.TreeItem(
+      const item = new vscode.TreeItem(
         'Loading...',
         vscode.TreeItemCollapsibleState.None
       );
+      item.iconPath = new vscode.ThemeIcon('loading~spin');
+      return item;
     }
-    if ('section' in element) {
+
+    if ('section' in element && 'items' in element) {
       return element.section;
     }
-    return this.createNoteTreeItem(element);
+
+    if ('id' in element && 'title' in element) {
+      return this.createNoteTreeItem(element);
+    }
+
+    this.logger?.appendLine(`Unknown element type: ${JSON.stringify(element)}`);
+    return new vscode.TreeItem(
+      'Error: Unknown Item',
+      vscode.TreeItemCollapsibleState.None
+    );
   }
 
   getChildren(
-    element?: TreeSection | KibelaNote
-  ): (TreeSection | KibelaNote)[] {
-    if (this.isLoading) {
-      return [];
-    }
+    element?: TreeSection | KibelaNote | AuthItem
+  ): (TreeSection | KibelaNote | AuthItem)[] {
     if (!element) {
+      if (this.isLoading) {
+        return [{ section: new vscode.TreeItem('Loading...'), items: [] }];
+      }
       return this.sections;
     }
+
     if ('section' in element) {
       return element.items;
     }
+
     return [];
   }
 
@@ -156,7 +221,7 @@ export class NoteTreeDataProvider
     this.refresh();
   }
 
-  async loadNotes(): Promise<void> {
+  async loadNotes(retryCount = 3, delay = 1000): Promise<void> {
     try {
       this.isLoading = true;
       this._onDidChangeTreeData.fire(undefined);
@@ -164,6 +229,13 @@ export class NoteTreeDataProvider
       this.isLoading = false;
       this.refresh();
     } catch (error) {
+      if (retryCount > 0) {
+        this.logger.appendLine(
+          `Retrying to load notes... (${retryCount} attempts left)`
+        );
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        return this.loadNotes(retryCount - 1, delay);
+      }
       this.isLoading = false;
       this._onDidChangeTreeData.fire(undefined);
       vscode.window.showErrorMessage('Failed to load notes');
@@ -182,6 +254,11 @@ export class NoteTreeDataProvider
       arguments: [note],
     };
     return treeItem;
+  }
+
+  clear(): void {
+    this.notes = [];
+    this._onDidChangeTreeData.fire(undefined);
   }
 }
 
