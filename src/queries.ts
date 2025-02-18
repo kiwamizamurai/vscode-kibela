@@ -28,6 +28,12 @@ export const GET_MY_NOTES = gql`
             id
             title
             url
+            contentUpdatedAt
+            author {
+              id
+              account
+              realName
+            }
           }
         }
       }
@@ -78,6 +84,12 @@ export const GET_LIKED_NOTES = gql`
               id
               title
               url
+              contentUpdatedAt
+              author {
+                id
+                account
+                realName
+              }
             }
           }
         }
@@ -94,6 +106,12 @@ export const GET_RECENTLY_VIEWED_NOTES = gql`
           id
           title
           url
+          contentUpdatedAt
+          author {
+            id
+            account
+            realName
+          }
         }
       }
     }

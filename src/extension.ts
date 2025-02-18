@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { GroupTreeProvider } from './groupTreeView';
 import { KibelaClient } from './kibelaClient';
-import { NoteTreeDataProvider } from './noteTreeView';
+import { NoteTreeDataProvider, MyNotesTreeDataProvider } from './noteTreeView';
 import { show } from './preview';
 import { KibelaNote } from './types';
 
@@ -32,10 +32,14 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     log.appendLine('Initializing tree views');
+    // 検索ツリービュー
+    const searchTreeDataProvider = new NoteTreeDataProvider(kibelaClient);
+    vscode.window.registerTreeDataProvider('searchResults', searchTreeDataProvider);
+
     // ノートツリービュー
-    noteTreeDataProvider = new NoteTreeDataProvider(kibelaClient);
-    vscode.window.registerTreeDataProvider('myNotes', noteTreeDataProvider);
-    noteTreeDataProvider.loadNotes();
+    const myNotesTreeDataProvider = new MyNotesTreeDataProvider(kibelaClient);
+    vscode.window.registerTreeDataProvider('myNotes', myNotesTreeDataProvider);
+    myNotesTreeDataProvider.refresh();
 
     // グループツリービュー
     groupTreeProvider = new GroupTreeProvider(kibelaClient);
@@ -48,6 +52,12 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
       vscode.commands.registerCommand('kibela.refreshGroups', () => {
         groupTreeProvider?.refresh();
+      }),
+      vscode.commands.registerCommand('kibela.refreshNotes', () => {
+        myNotesTreeDataProvider?.refresh();
+      }),
+      vscode.commands.registerCommand('kibela.refreshSearchResults', () => {
+        searchTreeDataProvider?.refresh();
       }),
       vscode.commands.registerCommand(
         'kibela.openFolder',

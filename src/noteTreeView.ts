@@ -38,15 +38,15 @@ export class NoteTreeDataProvider
   constructor(private kibelaClient: KibelaClient) {
     this.logger = vscode.window.createOutputChannel('Kibela Notes');
 
-    // Create tree view with search box in title
-    this._view = vscode.window.createTreeView('myNotes', {
+    // Create tree views
+    this._view = vscode.window.createTreeView('searchResults', {
       treeDataProvider: this,
       showCollapseAll: true,
     });
 
     // Set the view title
     if (this._view) {
-      this._view.title = 'KIBELA NOTES';
+      this._view.title = 'KIBELA SEARCH RESULTS';
     }
 
     // Register auth commands
@@ -106,72 +106,56 @@ export class NoteTreeDataProvider
   }
 
   async refresh(): Promise<void> {
-    const myNotes = await this.kibelaClient.getMyNotes();
-    const recentlyViewed = await this.kibelaClient.getRecentlyViewedNotes();
-    const likedNotes = await this.kibelaClient.getLikedNotes();
+    try {
+      this.isLoading = true;
+      this._onDidChangeTreeData.fire(undefined);
 
-    // 不正なノートを除外
-    const isValidNote = (note: KibelaNote): boolean => {
-      return (
-        note && typeof note === 'object' && 'id' in note && 'title' in note
-      );
-    };
+      // Only show search results in this view
+      this.sections = [];
 
-    // Recently Viewed内の重複を削除（最初に出てきたものを残す）
-    const seenIds = new Set<string>();
-    const uniqueRecentlyViewed = recentlyViewed.filter((note) => {
-      if (!isValidNote(note) || seenIds.has(note.id)) {
-        return false;
+      if (this.searchResults.length > 0) {
+        // Separate search results into groups and notes
+        const groupNotes = this.searchResults.filter(note => note.groups && note.groups.length > 0);
+        const personalNotes = this.searchResults.filter(note => !note.groups || note.groups.length === 0);
+
+        // Add search results sections
+        this.sections.push({
+          section: new vscode.TreeItem(
+            'All Results',
+            vscode.TreeItemCollapsibleState.Expanded
+          ),
+          items: this.searchResults,
+        });
+
+        if (personalNotes.length > 0) {
+          this.sections.push({
+            section: new vscode.TreeItem(
+              'Personal Notes',
+              vscode.TreeItemCollapsibleState.Expanded
+            ),
+            items: personalNotes,
+          });
+        }
+
+        if (groupNotes.length > 0) {
+          this.sections.push({
+            section: new vscode.TreeItem(
+              'Group Notes',
+              vscode.TreeItemCollapsibleState.Expanded
+            ),
+            items: groupNotes,
+          });
+        }
       }
-      seenIds.add(note.id);
-      return true;
-    });
 
-    // 不正なノートを除外
-    const validLikedNotes = likedNotes.filter(isValidNote);
-
-    this.sections = [
-      {
-        section: new vscode.TreeItem(
-          'My Notes',
-          vscode.TreeItemCollapsibleState.Expanded
-        ),
-        items: myNotes,
-      },
-      {
-        section: new vscode.TreeItem(
-          'Recently Viewed',
-          vscode.TreeItemCollapsibleState.Expanded
-        ),
-        items: uniqueRecentlyViewed,
-      },
-      {
-        section: new vscode.TreeItem(
-          'Liked Notes',
-          vscode.TreeItemCollapsibleState.Expanded
-        ),
-        items: validLikedNotes,
-      },
-    ];
-
-    // Add search results section if there are results
-    if (this.searchResults.length > 0) {
-      this.sections.push({
-        section: new vscode.TreeItem(
-          'Search Results',
-          vscode.TreeItemCollapsibleState.Expanded
-        ),
-        items: this.searchResults,
-      });
+      this.notes = [...this.searchResults];
+    } catch (error) {
+      vscode.window.showErrorMessage('Failed to refresh search results');
+      this.logger?.appendLine(`Refresh error: ${error}`);
+    } finally {
+      this.isLoading = false;
+      this._onDidChangeTreeData.fire(undefined);
     }
-
-    this._onDidChangeTreeData.fire(undefined);
-    this.notes = [
-      ...myNotes,
-      ...uniqueRecentlyViewed,
-      ...validLikedNotes,
-      ...this.searchResults,
-    ];
   }
 
   getTreeItem(element: TreeSection | KibelaNote | AuthItem): vscode.TreeItem {
@@ -242,6 +226,17 @@ export class NoteTreeDataProvider
     }
   }
 
+  private formatNoteData(note: Partial<KibelaNote>) {
+    return {
+      contentUpdatedAt: note.contentUpdatedAt || new Date().toISOString(),
+      author: note.author ? { 
+        id: note.author.id || '',
+        account: note.author.account || '',
+        realName: note.author.realName || '不明'
+      } : { id: '', account: '', realName: '不明' }
+    };
+  }
+
   private createNoteTreeItem(note: KibelaNote): vscode.TreeItem {
     const treeItem = new vscode.TreeItem(
       note.title,
@@ -253,6 +248,9 @@ export class NoteTreeDataProvider
       title: 'Open Note',
       arguments: [note],
     };
+    const formattedData = this.formatNoteData(note);
+    const lastUpdated = new Date(formattedData.contentUpdatedAt).toLocaleDateString('ja-JP');
+    treeItem.description = `${formattedData.author.realName} (${lastUpdated})`;
     return treeItem;
   }
 
@@ -275,5 +273,188 @@ export class NoteTreeItem extends vscode.TreeItem {
       title: 'Open Note',
       arguments: [note],
     };
+  }
+}
+
+export class MyNotesTreeDataProvider
+  implements vscode.TreeDataProvider<TreeSection | KibelaNote | AuthItem>
+{
+  private _onDidChangeTreeData: vscode.EventEmitter<
+    TreeSection | KibelaNote | AuthItem | undefined
+  > = new vscode.EventEmitter<
+    TreeSection | KibelaNote | AuthItem | undefined
+  >();
+  readonly onDidChangeTreeData: vscode.Event<
+    TreeSection | KibelaNote | AuthItem | undefined
+  > = this._onDidChangeTreeData.event;
+
+  private sections: TreeSection[] = [];
+  private notes: KibelaNote[] = [];
+  private _view:
+    | vscode.TreeView<TreeSection | KibelaNote | AuthItem>
+    | undefined;
+  private isLoading = false;
+  private logger: vscode.OutputChannel;
+
+  constructor(private kibelaClient: KibelaClient) {
+    this.logger = vscode.window.createOutputChannel('My Notes');
+
+    // Create tree view
+    this._view = vscode.window.createTreeView('myNotes', {
+      treeDataProvider: this,
+      showCollapseAll: true,
+    });
+
+    // Set the view title
+    if (this._view) {
+      this._view.title = 'KIBELA NOTES';
+    }
+
+    // Listen for auth state changes
+    this.kibelaClient.onDidChangeAuthState(() => {
+      this.refresh();
+    });
+  }
+
+  async refresh(): Promise<void> {
+    try {
+      this.isLoading = true;
+      this._onDidChangeTreeData.fire(undefined);
+
+      const myNotes = await this.kibelaClient.getMyNotes();
+      const recentlyViewed = await this.kibelaClient.getRecentlyViewedNotes();
+      const likedNotes = await this.kibelaClient.getLikedNotes();
+
+      // 不正なノートを除外
+      const isValidNote = (note: KibelaNote): boolean => {
+        return (
+          note && typeof note === 'object' && 'id' in note && 'title' in note
+        );
+      };
+
+      // Recently Viewed内の重複を削除（最初に出てきたものを残す）
+      const seenIds = new Set<string>();
+      const uniqueRecentlyViewed = recentlyViewed.filter((note) => {
+        if (!isValidNote(note) || seenIds.has(note.id)) {
+          return false;
+        }
+        seenIds.add(note.id);
+        return true;
+      });
+
+      // 不正なノートを除外
+      const validLikedNotes = likedNotes.filter(isValidNote);
+
+      this.sections = [
+        {
+          section: new vscode.TreeItem(
+            'My Notes',
+            vscode.TreeItemCollapsibleState.Expanded
+          ),
+          items: myNotes,
+        },
+        {
+          section: new vscode.TreeItem(
+            'Recently Viewed',
+            vscode.TreeItemCollapsibleState.Expanded
+          ),
+          items: uniqueRecentlyViewed,
+        },
+        {
+          section: new vscode.TreeItem(
+            'Liked Notes',
+            vscode.TreeItemCollapsibleState.Expanded
+          ),
+          items: validLikedNotes,
+        },
+      ];
+
+      this.notes = [
+        ...myNotes,
+        ...uniqueRecentlyViewed,
+        ...validLikedNotes,
+      ];
+    } catch (error) {
+      vscode.window.showErrorMessage('Failed to refresh notes');
+      this.logger?.appendLine(`Refresh error: ${error}`);
+    } finally {
+      this.isLoading = false;
+      this._onDidChangeTreeData.fire(undefined);
+    }
+  }
+
+  getTreeItem(element: TreeSection | KibelaNote | AuthItem): vscode.TreeItem {
+    if (this.isLoading) {
+      const item = new vscode.TreeItem(
+        'Loading...',
+        vscode.TreeItemCollapsibleState.None
+      );
+      item.iconPath = new vscode.ThemeIcon('loading~spin');
+      return item;
+    }
+
+    if ('section' in element && 'items' in element) {
+      return element.section;
+    }
+
+    if ('id' in element && 'title' in element) {
+      return this.createNoteTreeItem(element);
+    }
+
+    this.logger?.appendLine(`Unknown element type: ${JSON.stringify(element)}`);
+    return new vscode.TreeItem(
+      'Error: Unknown Item',
+      vscode.TreeItemCollapsibleState.None
+    );
+  }
+
+  getChildren(
+    element?: TreeSection | KibelaNote | AuthItem
+  ): (TreeSection | KibelaNote | AuthItem)[] {
+    if (!element) {
+      if (this.isLoading) {
+        return [{ section: new vscode.TreeItem('Loading...'), items: [] }];
+      }
+      return this.sections;
+    }
+
+    if ('section' in element) {
+      return element.items;
+    }
+
+    return [];
+  }
+
+  private createNoteTreeItem(note: KibelaNote): vscode.TreeItem {
+    const treeItem = new vscode.TreeItem(
+      note.title,
+      vscode.TreeItemCollapsibleState.None
+    );
+    treeItem.iconPath = new vscode.ThemeIcon('note');
+    treeItem.command = {
+      command: 'kibela.openNote',
+      title: 'Open Note',
+      arguments: [note],
+    };
+    const formattedData = this.formatNoteData(note);
+    const lastUpdated = new Date(formattedData.contentUpdatedAt).toLocaleDateString('ja-JP');
+    treeItem.description = `${formattedData.author.realName} (${lastUpdated})`;
+    return treeItem;
+  }
+
+  private formatNoteData(note: Partial<KibelaNote>) {
+    return {
+      contentUpdatedAt: note.contentUpdatedAt || new Date().toISOString(),
+      author: note.author ? { 
+        id: note.author.id || '',
+        account: note.author.account || '',
+        realName: note.author.realName || '不明'
+      } : { id: '', account: '', realName: '不明' }
+    };
+  }
+
+  clear(): void {
+    this.notes = [];
+    this._onDidChangeTreeData.fire(undefined);
   }
 }
