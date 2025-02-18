@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { KibelaClient } from './kibelaClient';
 import { KibelaNote } from './types';
 import { SearchHistory } from './searchHistory';
+import { SearchSettingsManager } from './searchSettings';
 
 interface TreeSection {
   section: vscode.TreeItem;
@@ -38,7 +39,8 @@ export class NoteTreeDataProvider
 
   constructor(
     private kibelaClient: KibelaClient,
-    private searchHistory: SearchHistory
+    private searchHistory: SearchHistory,
+    private searchSettings: SearchSettingsManager
   ) {
     this.logger = vscode.window.createOutputChannel('Kibela Notes');
 
@@ -77,6 +79,7 @@ export class NoteTreeDataProvider
 
     vscode.commands.registerCommand('kibela.showSearch', async () => {
       const history = await this.searchHistory.getHistory();
+      const settings = await this.searchSettings.getSettings();
 
       const quickPick = vscode.window.createQuickPick();
       quickPick.placeholder = 'Search notes...';
@@ -97,7 +100,10 @@ export class NoteTreeDataProvider
           try {
             this.isLoading = true;
             this._onDidChangeTreeData.fire(undefined);
-            this.searchResults = await this.kibelaClient.searchNotes(query);
+            this.searchResults = await this.kibelaClient.searchNotes(
+              query,
+              settings
+            );
             await this.searchHistory.addSearch(query);
             this.isLoading = false;
             this.refresh();
