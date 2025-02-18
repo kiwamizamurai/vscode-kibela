@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import { KibelaAttachment } from './types';
 
 const viewType = 'kibela.preview';
 let currentPanel: vscode.WebviewPanel | undefined;
@@ -245,53 +244,10 @@ function updateContent(
       .groups, .folders {
         margin-top: 15px;
       }
-      .groups h3, .folders h3 {
+      .groups h3, .folders h3, .attachments h3 {
         margin: 10px 0 5px;
-        font-size: 0.9em;
+        font-size: 1em;
         color: #24292e;
-      }
-      .groups ul, .folders ul {
-        margin: 0;
-        padding-left: 20px;
-        list-style-type: none;
-      }
-      .groups li, .folders li {
-        font-size: 0.9em;
-        color: #586069;
-        margin: 3px 0;
-      }
-      .markdown-body {
-        box-sizing: border-box;
-        min-width: 200px;
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 45px;
-        background-color: #ffffff;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-      }
-      .comment {
-        margin: 20px 0;
-        padding: 15px;
-        background-color: #f6f8fa;
-        border-radius: 6px;
-        border-left: 4px solid #0366d6;
-      }
-      .comment-author {
-        font-weight: bold;
-        color: #24292e;
-      }
-      .comment-date {
-        font-size: 0.9em;
-        color: #586069;
-        margin: 5px 0;
-      }
-      .comment-content {
-        margin-top: 10px;
-        color: #24292e;
-      }
-      .attachments {
-        margin-top: 20px;
       }
       .attachment-grid {
         display: grid;
@@ -304,23 +260,26 @@ function updateContent(
         border-radius: 6px;
         padding: 8px;
         background: white;
-        transition: transform 0.2s;
+        transition: all 0.2s ease;
+        cursor: pointer;
       }
       .attachment-item:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
       }
       .attachment-item img {
         width: 100%;
         height: auto;
+        max-height: 150px;
+        object-fit: contain;
         border-radius: 4px;
-        object-fit: cover;
+        background: #f6f8fa;
       }
       .attachment-name {
         margin-top: 8px;
         font-size: 0.9em;
         color: #24292e;
-        word-break: break-all;
+        word-break: break-word;
+        text-align: center;
       }
       .attachment-file {
         display: flex;
@@ -337,40 +296,152 @@ function updateContent(
         color: #586069;
         margin-top: 4px;
       }
+      .content img {
+        max-width: 100%;
+        height: auto;
+        border-radius: 6px;
+        margin: 8px 0;
+        cursor: pointer;
+      }
+      .comments {
+        margin-top: 30px;
+        border-top: 1px solid #e1e4e8;
+        padding-top: 20px;
+      }
+      .comment {
+        background: #f6f8fa;
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 16px;
+      }
+      .comment-author {
+        font-weight: bold;
+        color: #24292e;
+      }
+      .comment-date {
+        font-size: 0.8em;
+        color: #586069;
+        margin: 4px 0;
+      }
+      .comment-content {
+        margin-top: 8px;
+      }
+      /* モーダル関連のスタイル */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+      }
+      .modal.show {
+        display: flex;
+      }
+      .modal-content {
+        position: relative;
+        max-width: 90%;
+        max-height: 90vh;
+      }
+      .modal-content img {
+        max-width: 100%;
+        max-height: 90vh;
+        object-fit: contain;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+      .modal-close {
+        position: absolute;
+        top: -40px;
+        right: 0;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 8px;
+      }
+      .modal-close:hover {
+        opacity: 0.8;
+      }
+      .modal-caption {
+        position: absolute;
+        bottom: -40px;
+        left: 0;
+        right: 0;
+        color: white;
+        text-align: center;
+        font-size: 14px;
+      }
     </style>
+  `;
+
+  const modalHtml = `
+    <div id="imageModal" class="modal">
+      <div class="modal-content">
+        <button class="modal-close">&times;</button>
+        <img id="modalImage" src="" alt="">
+        <div id="modalCaption" class="modal-caption"></div>
+      </div>
+    </div>
+  `;
+
+  const script = `
+    <script>
+      const modal = document.getElementById('imageModal');
+      const modalImg = document.getElementById('modalImage');
+      const modalCaption = document.getElementById('modalCaption');
+      const closeBtn = document.querySelector('.modal-close');
+
+      document.querySelectorAll('.attachment-item img, .content img').forEach(img => {
+        img.addEventListener('click', function() {
+          modal.classList.add('show');
+          modalImg.src = this.src;
+          modalCaption.textContent = this.alt || this.title || '';
+        });
+      });
+
+      function closeModal() {
+        modal.classList.remove('show');
+      }
+
+      closeBtn.addEventListener('click', closeModal);
+
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          closeModal();
+        }
+      });
+
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
+          closeModal();
+        }
+      });
+    </script>
   `;
 
   panel.webview.html = `
     <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: https: vscode-webview: vscode-resource:; script-src 'unsafe-inline' https:; style-src 'unsafe-inline' https:;">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.2.0/github-markdown.min.css">
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-        ${styles}
-      </head>
-      <body>
-        ${metadataHtml}
-        <div class="markdown-body">
-          ${content}
-        </div>
-        ${
-          comments?.length
-            ? `
-          <div class="comments-section">
-            <h2>Comments</h2>
-            ${commentsHtml}
-          </div>
-        `
-            : ''
-        }
-        <script>
-          hljs.highlightAll();
-        </script>
-      </body>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      ${styles}
+    </head>
+    <body>
+      ${metadataHtml}
+      <div class="content">
+        ${content}
+      </div>
+      ${commentsHtml ? `<div class="comments">${commentsHtml}</div>` : ''}
+      ${modalHtml}
+      ${script}
+    </body>
     </html>
   `;
 }

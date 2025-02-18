@@ -180,7 +180,7 @@ export interface Note {
   content: string;
   contentHtml: string;
   contentUpdatedAt: string;
-  publishedAt: string;
+  publishedAt?: string;
   author: {
     id: string;
     account: string;
@@ -208,6 +208,14 @@ export interface Note {
         realName: string;
       };
       createdAt: string;
+    }[];
+  };
+  attachments: {
+    nodes: {
+      id: string;
+      name: string;
+      dataUrl: string;
+      mimeType: string;
     }[];
   };
 }
