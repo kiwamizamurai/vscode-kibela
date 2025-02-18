@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { GroupTreeProvider } from './groupTreeView';
 import { KibelaClient } from './kibelaClient';
-import { NoteTreeDataProvider } from './noteTreeView';
+import { NoteTreeDataProvider, MyNotesTreeDataProvider } from './noteTreeView';
 import { show } from './preview';
 import { KibelaNote } from './types';
 
@@ -14,7 +14,6 @@ export function activate(context: vscode.ExtensionContext) {
   let noteTreeDataProvider: NoteTreeDataProvider | undefined;
   let groupTreeProvider: GroupTreeProvider | undefined;
 
-  // 認証状態をコンテキストに設定
   const updateAuthContext = (isAuthenticated: boolean) => {
     vscode.commands.executeCommand(
       'setContext',
@@ -32,22 +31,31 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     log.appendLine('Initializing tree views');
-    // ノートツリービュー
-    noteTreeDataProvider = new NoteTreeDataProvider(kibelaClient);
-    vscode.window.registerTreeDataProvider('myNotes', noteTreeDataProvider);
-    noteTreeDataProvider.loadNotes();
+    const searchTreeDataProvider = new NoteTreeDataProvider(kibelaClient);
+    vscode.window.registerTreeDataProvider(
+      'searchResults',
+      searchTreeDataProvider
+    );
 
-    // グループツリービュー
+    const myNotesTreeDataProvider = new MyNotesTreeDataProvider(kibelaClient);
+    vscode.window.registerTreeDataProvider('myNotes', myNotesTreeDataProvider);
+    myNotesTreeDataProvider.refresh();
+
     groupTreeProvider = new GroupTreeProvider(kibelaClient);
     const treeView = vscode.window.createTreeView('kibelaGroups', {
       treeDataProvider: groupTreeProvider,
       showCollapseAll: true,
     });
 
-    // Register commands
     context.subscriptions.push(
       vscode.commands.registerCommand('kibela.refreshGroups', () => {
         groupTreeProvider?.refresh();
+      }),
+      vscode.commands.registerCommand('kibela.refreshNotes', () => {
+        myNotesTreeDataProvider?.refresh();
+      }),
+      vscode.commands.registerCommand('kibela.refreshSearchResults', () => {
+        searchTreeDataProvider?.refresh();
       }),
       vscode.commands.registerCommand(
         'kibela.openFolder',
@@ -111,20 +119,17 @@ export function activate(context: vscode.ExtensionContext) {
       kibelaClient = new KibelaClient(team, token, log);
       log.appendLine('Kibela client initialized');
 
-      // 認証状態の変更を監視
       kibelaClient.onDidChangeAuthState((state) => {
         log.appendLine(`Auth state changed: ${state.isAuthenticated}`);
         updateAuthContext(state.isAuthenticated);
         if (state.isAuthenticated) {
           initializeTreeViews();
         } else {
-          // 認証が失敗した場合はTreeViewをクリア
           noteTreeDataProvider?.clear();
           groupTreeProvider?.clear();
         }
       });
 
-      // 認証状態の初期チェックを待つ
       await kibelaClient.waitForAuthCheck();
       return kibelaClient.isAuthenticated();
     } catch (error) {
@@ -173,7 +178,6 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage('Please authenticate first');
         return;
       }
-      // Show search box
       const provider = vscode.window.registerTreeDataProvider(
         'myNotes',
         new NoteTreeDataProvider(kibelaClient)
@@ -183,10 +187,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(authenticate, searchNotes);
 
-  // 初期状態は未認証
   updateAuthContext(false);
 
-  // Initialize with stored credentials
   (async () => {
     const config = vscode.workspace.getConfiguration('kibela');
     const team = config.get<string>('team');

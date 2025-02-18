@@ -104,7 +104,6 @@ export class GroupTreeProvider
 
   async getChildren(element?: KibelaTreeItem): Promise<KibelaTreeItem[]> {
     if (!element) {
-      // Root level - show groups
       const groups = await this.kibelaClient.getGroups();
       return groups.map(
         (group) =>
@@ -119,11 +118,9 @@ export class GroupTreeProvider
     }
 
     if (element.type === 'group') {
-      // Group level - show folders
       const folders = await this.kibelaClient.getGroupFolders(element.id);
       const rootFolders = folders.filter((f) => !f.parent);
 
-      // Get notes not in any folder
       const groupNotes = await this.kibelaClient.getGroupNotes(element.id);
 
       return [
@@ -169,7 +166,6 @@ export class GroupTreeProvider
 
     if (element.type === 'folder') {
       const folderItem = element as FolderTreeItem;
-      // Folder level - show subfolders and notes
       const folders = await this.kibelaClient.getGroupFolders(
         folderItem.groupId
       );

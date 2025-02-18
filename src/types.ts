@@ -8,7 +8,7 @@ export interface KibelaNote {
   contentUpdatedAt: string;
   publishedAt: string;
   author: {
-    id: string;
+    id?: string;
     account: string;
     realName: string;
   };
@@ -260,6 +260,7 @@ export interface GroupTreeItem extends KibelaTreeItem {
   type: 'group';
   isPrivate: boolean;
   description: string;
+  isJoined: boolean;
 }
 
 export interface FolderTreeItem extends KibelaTreeItem {
