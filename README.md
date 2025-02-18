@@ -16,9 +16,20 @@ Access, search, and manage your Kibela notes directly from your development envi
 
 ## ✨ Features
 
-- 🔍 **Quick Search**: Instantly find notes with real-time search
-- 🎯 **Smart Organization**: My Notes, Recently Viewed, Liked Notes with group and folder
-- 🖥️ **Rich Preview**: Note preview with the metadata and comments
+- 🔍 **Advanced Search**
+  - Real-time search with history
+  - Customizable filters (archived, resource types)
+  - Sort by relevance or recency
+  - Filter by folders and users
+- 📁 **Smart Organization**
+  - Personal and group notes
+  - Folder hierarchy
+  - Recently viewed notes
+- 🖥️ **Rich Preview**
+  - Note content with metadata
+  - Comments thread
+  - File attachments with preview
+  - Group and folder information
 
 ## 🚀 Getting Started
 
