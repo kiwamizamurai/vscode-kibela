@@ -5,6 +5,7 @@ import { NoteTreeDataProvider, MyNotesTreeDataProvider } from './noteTreeView';
 import { show } from './preview';
 import { KibelaNote } from './types';
 import { SearchHistory } from './searchHistory';
+import { SearchSettingsManager } from './searchSettings';
 
 let kibelaClient: KibelaClient;
 
@@ -15,6 +16,7 @@ export function activate(context: vscode.ExtensionContext) {
   let noteTreeDataProvider: NoteTreeDataProvider | undefined;
   let groupTreeProvider: GroupTreeProvider | undefined;
   const searchHistory = new SearchHistory(context);
+  const searchSettings = new SearchSettingsManager(context);
 
   const updateAuthContext = (isAuthenticated: boolean) => {
     vscode.commands.executeCommand(
@@ -35,7 +37,8 @@ export function activate(context: vscode.ExtensionContext) {
     log.appendLine('Initializing tree views');
     const searchTreeDataProvider = new NoteTreeDataProvider(
       kibelaClient,
-      searchHistory
+      searchHistory,
+      searchSettings
     );
     vscode.window.registerTreeDataProvider(
       'searchResults',
@@ -185,12 +188,29 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const provider = vscode.window.registerTreeDataProvider(
         'myNotes',
-        new NoteTreeDataProvider(kibelaClient, searchHistory)
+        new NoteTreeDataProvider(kibelaClient, searchHistory, searchSettings)
       );
     }
   );
 
   context.subscriptions.push(authenticate, searchNotes);
+
+  const configureSearchSettings = vscode.commands.registerCommand(
+    'kibela.searchSettings',
+    async () => {
+      if (!kibelaClient) {
+        vscode.window.showErrorMessage('Please authenticate first');
+        return;
+      }
+      await searchSettings.showSettingsUI();
+    }
+  );
+
+  context.subscriptions.push(
+    authenticate,
+    searchNotes,
+    configureSearchSettings
+  );
 
   updateAuthContext(false);
 

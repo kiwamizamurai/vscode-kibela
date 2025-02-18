@@ -1,8 +1,21 @@
 import { gql } from 'graphql-request';
 
 export const SEARCH_NOTES = gql`
-  query SearchNotes($query: String!) {
-    search(query: $query, first: 15) {
+  query SearchNotes(
+    $query: String!,
+    $coediting: Boolean,
+    $isArchived: Boolean = false,
+    $sortBy: SearchSortKind = RELEVANT,
+    $resources: [SearchResourceKind!]
+  ) {
+    search(
+      query: $query,
+      first: 15,
+      coediting: $coediting,
+      isArchived: $isArchived,
+      sortBy: $sortBy,
+      resources: $resources
+    ) {
       edges {
         node {
           document {
@@ -10,6 +23,16 @@ export const SEARCH_NOTES = gql`
               id
               title
               url
+              contentUpdatedAt
+              author {
+                id
+                account
+                realName
+              }
+              groups {
+                id
+                name
+              }
             }
           }
         }

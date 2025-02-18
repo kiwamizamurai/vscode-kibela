@@ -29,6 +29,7 @@ import {
   NotesResponse,
   SearchResponse,
 } from './types';
+import { SearchSettings } from './searchSettings';
 
 export class KibelaClient {
   private client!: GraphQLClient;
@@ -125,7 +126,10 @@ export class KibelaClient {
     return is403 || hasUnauthorizedMessage;
   }
 
-  async searchNotes(query: string): Promise<KibelaNote[]> {
+  async searchNotes(
+    query: string,
+    settings: SearchSettings = {}
+  ): Promise<KibelaNote[]> {
     if (!this.isAuthenticated()) {
       throw new Error('Not authenticated');
     }
@@ -133,7 +137,13 @@ export class KibelaClient {
     try {
       const response = await this.client.request<SearchResponse>(
         queries.SEARCH_NOTES,
-        { query }
+        {
+          query,
+          coediting: settings.coediting,
+          isArchived: settings.isArchived || false,
+          sortBy: settings.sortBy || 'RELEVANT',
+          resources: settings.resources,
+        }
       );
       return response.search.edges
         .filter((edge) => edge.node.document !== null)
