@@ -1,16 +1,24 @@
 import * as vscode from 'vscode';
+import { KibelaClient } from './kibelaClient';
 
 export interface SearchSettings {
   coediting?: boolean;
   isArchived?: boolean;
   sortBy?: 'RELEVANT' | 'RECENT';
   resources?: ('NOTE' | 'COMMENT' | 'ATTACHMENT')[];
+  folderIds?: string[];
+  userIds?: string[];
 }
 
 export class SearchSettingsManager {
   private static readonly SETTINGS_KEY = 'kibela.searchSettings';
+  private kibelaClient?: KibelaClient;
 
   constructor(private context: vscode.ExtensionContext) {}
+
+  public setClient(client: KibelaClient) {
+    this.kibelaClient = client;
+  }
 
   public async getSettings(): Promise<SearchSettings> {
     const settings = this.context.globalState.get<SearchSettings>(
@@ -27,9 +35,13 @@ export class SearchSettingsManager {
   }
 
   public async showSettingsUI(): Promise<void> {
+    if (!this.kibelaClient) {
+      vscode.window.showErrorMessage('Client not initialized');
+      return;
+    }
+
     const currentSettings = await this.getSettings();
 
-    // Create QuickPick items for each setting
     const items: vscode.QuickPickItem[] = [
       {
         label: 'Coediting',
@@ -55,6 +67,18 @@ export class SearchSettingsManager {
         description: currentSettings.resources
           ? currentSettings.resources.join(', ')
           : 'All',
+      },
+      {
+        label: 'Filter by Folders',
+        description: currentSettings.folderIds?.length
+          ? `${currentSettings.folderIds.length} folders selected`
+          : 'All folders',
+      },
+      {
+        label: 'Filter by Users',
+        description: currentSettings.userIds?.length
+          ? `${currentSettings.userIds.length} users selected`
+          : 'All users',
       },
     ];
 
@@ -114,6 +138,52 @@ export class SearchSettingsManager {
             | 'COMMENT'
             | 'ATTACHMENT'
           )[];
+        }
+        break;
+
+      case 'Filter by Folders':
+        // Get all folders from all groups
+        const groups = await this.kibelaClient.getGroups();
+        const folderItems: vscode.QuickPickItem[] = [];
+
+        for (const group of groups) {
+          const folders = await this.kibelaClient.getGroupFolders(group.id);
+          folders.forEach((folder) => {
+            folderItems.push({
+              label: folder.fullName,
+              description: group.name,
+              picked: currentSettings.folderIds?.includes(folder.id),
+              detail: folder.id,
+            });
+          });
+        }
+
+        const selectedFolders = await vscode.window.showQuickPick(folderItems, {
+          placeHolder: 'Select folders to filter by',
+          canPickMany: true,
+        });
+
+        if (selectedFolders) {
+          currentSettings.folderIds = selectedFolders.map((f) => f.detail!);
+        }
+        break;
+
+      case 'Filter by Users':
+        const users = await this.kibelaClient.getUsers();
+        const userItems = users.map((user) => ({
+          label: user.realName,
+          description: user.account,
+          picked: currentSettings.userIds?.includes(user.id),
+          detail: user.id,
+        }));
+
+        const selectedUsers = await vscode.window.showQuickPick(userItems, {
+          placeHolder: 'Select users to filter by',
+          canPickMany: true,
+        });
+
+        if (selectedUsers) {
+          currentSettings.userIds = selectedUsers.map((u) => u.detail!);
         }
         break;
     }

@@ -276,3 +276,15 @@ export const GET_FOLDER_NOTES = gql`
     }
   }
 `;
+
+export const GET_USERS = gql`
+  query GetUsers {
+    users(first: 100) {
+      nodes {
+        id
+        account
+        realName
+      }
+    }
+  }
+`;

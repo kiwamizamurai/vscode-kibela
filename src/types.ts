@@ -281,3 +281,15 @@ export interface NoteTreeItem extends KibelaTreeItem {
     realName: string;
   };
 }
+
+export interface KibelaUser {
+  id: string;
+  account: string;
+  realName: string;
+}
+
+export interface UsersResponse {
+  users: {
+    nodes: KibelaUser[];
+  };
+}
