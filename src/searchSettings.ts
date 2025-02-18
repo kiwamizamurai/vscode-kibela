@@ -142,7 +142,6 @@ export class SearchSettingsManager {
         break;
 
       case 'Filter by Folders':
-        // Get all folders from all groups
         const groups = await this.kibelaClient.getGroups();
         const folderItems: vscode.QuickPickItem[] = [];
 

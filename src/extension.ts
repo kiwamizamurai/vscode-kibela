@@ -107,7 +107,8 @@ export function activate(context: vscode.ExtensionContext) {
                   ? new Date(noteData.publishedAt)
                   : undefined,
                 noteData.groups,
-                noteData.folders.nodes
+                noteData.folders.nodes,
+                noteData.attachments.nodes
               );
             }
           } catch (error) {
