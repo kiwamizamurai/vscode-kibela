@@ -126,6 +126,7 @@ export function activate(context: vscode.ExtensionContext) {
     try {
       kibelaClient = new KibelaClient(team, token, log);
       log.appendLine('Kibela client initialized');
+      searchSettings.setClient(kibelaClient);
 
       kibelaClient.onDidChangeAuthState((state) => {
         log.appendLine(`Auth state changed: ${state.isAuthenticated}`);
@@ -192,8 +193,6 @@ export function activate(context: vscode.ExtensionContext) {
       );
     }
   );
-
-  context.subscriptions.push(authenticate, searchNotes);
 
   const configureSearchSettings = vscode.commands.registerCommand(
     'kibela.searchSettings',

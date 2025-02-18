@@ -20,6 +20,7 @@ import {
   KibelaFolder,
   KibelaGroup,
   KibelaNote,
+  KibelaUser,
   Note,
   NoteBrowsingHistoryResponse,
   NoteComment,
@@ -28,6 +29,7 @@ import {
   NoteResponse,
   NotesResponse,
   SearchResponse,
+  UsersResponse,
 } from './types';
 import { SearchSettings } from './searchSettings';
 
@@ -35,7 +37,12 @@ export class KibelaClient {
   private client!: GraphQLClient;
   private noteContentCache: CacheManager<NoteContent>;
   private notesCache: CacheManager<KibelaNote[]>;
+  private usersCache: CacheManager<KibelaUser[]>;
+  private groupsCache: CacheManager<KibelaGroup[]>;
+  private groupFoldersCache: CacheManager<KibelaFolder[]>;
   private readonly CACHE_TTL = 5 * 60 * 1000;
+  private readonly USERS_CACHE_TTL = 30 * 60 * 1000;
+  private readonly GROUPS_CACHE_TTL = 15 * 60 * 1000;
   private currentUserId: string | null = null;
   private logger: vscode.OutputChannel;
   private _onDidChangeAuthState = new vscode.EventEmitter<AuthState>();
@@ -48,6 +55,9 @@ export class KibelaClient {
     this.logger = logger;
     this.noteContentCache = new CacheManager(this.CACHE_TTL);
     this.notesCache = new CacheManager(this.CACHE_TTL);
+    this.usersCache = new CacheManager(this.USERS_CACHE_TTL);
+    this.groupsCache = new CacheManager(this.GROUPS_CACHE_TTL);
+    this.groupFoldersCache = new CacheManager(this.GROUPS_CACHE_TTL);
     this._team = team;
     this.initializeClient(team, token);
   }
@@ -85,6 +95,9 @@ export class KibelaClient {
   private clearCaches() {
     this.noteContentCache.clear();
     this.notesCache.clear();
+    this.usersCache.clear();
+    this.groupsCache.clear();
+    this.groupFoldersCache.clear();
   }
 
   async logout() {
@@ -278,18 +291,54 @@ export class KibelaClient {
   }
 
   async getGroups(): Promise<KibelaGroup[]> {
-    const response = await this.client.request<GroupsResponse>(GET_GROUPS);
-    return response.groups.nodes.filter((group) => group.isJoined);
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const cacheKey = 'groups';
+      const cached = this.groupsCache.get(cacheKey);
+      if (cached) {
+        this.logger.appendLine('Returning cached groups');
+        return cached;
+      }
+
+      this.logger.appendLine('Fetching groups from API');
+      const response = await this.client.request<GroupsResponse>(GET_GROUPS);
+      const groups = response.groups.nodes.filter((group) => group.isJoined);
+      this.groupsCache.set(cacheKey, groups);
+      return groups;
+    } catch (error) {
+      this.logError('getGroups', error as KibelaError);
+      throw new Error('Failed to fetch groups');
+    }
   }
 
   async getGroupFolders(groupId: string): Promise<KibelaFolder[]> {
-    const response = await this.client.request<FoldersResponse>(
-      GET_GROUP_FOLDERS,
-      {
-        groupId,
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const cacheKey = `group_folders_${groupId}`;
+      const cached = this.groupFoldersCache.get(cacheKey);
+      if (cached) {
+        this.logger.appendLine(`Returning cached folders for group ${groupId}`);
+        return cached;
       }
-    );
-    return response.group.folders.nodes;
+
+      this.logger.appendLine(`Fetching folders for group ${groupId} from API`);
+      const response = await this.client.request<FoldersResponse>(
+        GET_GROUP_FOLDERS,
+        { groupId }
+      );
+      const folders = response.group.folders.nodes;
+      this.groupFoldersCache.set(cacheKey, folders);
+      return folders;
+    } catch (error) {
+      this.logError('getGroupFolders', error as KibelaError);
+      throw new Error('Failed to fetch group folders');
+    }
   }
 
   async getGroupNotes(groupId: string) {
@@ -344,6 +393,32 @@ export class KibelaClient {
   async waitForAuthCheck(): Promise<void> {
     if (this.authCheckPromise) {
       await this.authCheckPromise;
+    }
+  }
+
+  async getUsers(): Promise<KibelaUser[]> {
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const cacheKey = 'users';
+      const cached = this.usersCache.get(cacheKey);
+      if (cached) {
+        this.logger.appendLine('Returning cached users');
+        return cached;
+      }
+
+      this.logger.appendLine('Fetching users from API');
+      const response = await this.client.request<UsersResponse>(
+        queries.GET_USERS
+      );
+      const users = response.users.nodes;
+      this.usersCache.set(cacheKey, users);
+      return users;
+    } catch (error) {
+      this.logError('getUsers', error as KibelaError);
+      throw new Error('Failed to fetch users');
     }
   }
 }

@@ -29,11 +29,21 @@ export class GroupTreeProvider
     KibelaTreeItem | undefined | null
   > = this._onDidChangeTreeData.event;
   private groups: KibelaGroup[] = [];
+  private isLoading = false;
 
   constructor(private kibelaClient: KibelaClient) {}
 
-  refresh(): void {
-    this._onDidChangeTreeData.fire(undefined);
+  async refresh(): Promise<void> {
+    try {
+      this.isLoading = true;
+      this._onDidChangeTreeData.fire(undefined);
+      await this.getChildren();
+    } catch (error) {
+      vscode.window.showErrorMessage('Failed to refresh groups');
+    } finally {
+      this.isLoading = false;
+      this._onDidChangeTreeData.fire(undefined);
+    }
   }
 
   clear(): void {
@@ -42,6 +52,15 @@ export class GroupTreeProvider
   }
 
   getTreeItem(element: KibelaTreeItem): vscode.TreeItem {
+    if (this.isLoading) {
+      const item = new vscode.TreeItem(
+        'Loading...',
+        vscode.TreeItemCollapsibleState.None
+      );
+      item.iconPath = new vscode.ThemeIcon('loading~spin');
+      return item;
+    }
+
     const baseItem: vscode.TreeItem = {
       ...element,
       contextValue: element.type,
@@ -50,11 +69,15 @@ export class GroupTreeProvider
     switch (element.type) {
       case 'group': {
         const groupItem = element as GroupTreeItem;
+        const statusIcon = groupItem.isPrivate ? '🔒' : '👥';
+        const joinStatus = groupItem.isJoined ? '参加中' : '未参加';
         return {
           ...baseItem,
-          collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
           iconPath: new vscode.ThemeIcon('organization'),
-          description: groupItem.isPrivate ? '(Private)' : undefined,
+          description: `${statusIcon} ${joinStatus} - ${
+            groupItem.description || '説明なし'
+          }`,
         };
       }
       case 'folder': {
@@ -89,7 +112,7 @@ export class GroupTreeProvider
             title: 'Open Note',
             arguments: [
               {
-                id: originalNoteId, // 元のノートIDを使用
+                id: originalNoteId,
                 title: noteItem.label,
                 contentUpdatedAt: noteItem.contentUpdatedAt,
                 publishedAt: noteItem.publishedAt,
@@ -113,6 +136,7 @@ export class GroupTreeProvider
             label: group.name,
             isPrivate: group.isPrivate,
             description: group.description,
+            isJoined: group.isJoined,
           }) as GroupTreeItem
       );
     }
