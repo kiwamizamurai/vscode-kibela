@@ -38,18 +38,15 @@ export class NoteTreeDataProvider
   constructor(private kibelaClient: KibelaClient) {
     this.logger = vscode.window.createOutputChannel('Kibela Notes');
 
-    // Create tree views
     this._view = vscode.window.createTreeView('searchResults', {
       treeDataProvider: this,
       showCollapseAll: true,
     });
 
-    // Set the view title
     if (this._view) {
       this._view.title = 'KIBELA SEARCH RESULTS';
     }
 
-    // Register auth commands
     vscode.commands.registerCommand('kibela.login', async () => {
       const team = await vscode.window.showInputBox({
         prompt: 'Enter your Kibela team name',
@@ -70,12 +67,10 @@ export class NoteTreeDataProvider
       await this.refresh();
     });
 
-    // Listen for auth state changes
     this.kibelaClient.onDidChangeAuthState(() => {
       this.refresh();
     });
 
-    // Register search command
     vscode.commands.registerCommand('kibela.showSearch', async () => {
       const searchBox = vscode.window.createInputBox();
       searchBox.placeholder = 'Search notes...';
@@ -110,15 +105,12 @@ export class NoteTreeDataProvider
       this.isLoading = true;
       this._onDidChangeTreeData.fire(undefined);
 
-      // Only show search results in this view
       this.sections = [];
 
       if (this.searchResults.length > 0) {
-        // Separate search results into groups and notes
         const groupNotes = this.searchResults.filter(note => note.groups && note.groups.length > 0);
         const personalNotes = this.searchResults.filter(note => !note.groups || note.groups.length === 0);
 
-        // Add search results sections
         this.sections.push({
           section: new vscode.TreeItem(
             'All Results',
@@ -299,18 +291,15 @@ export class MyNotesTreeDataProvider
   constructor(private kibelaClient: KibelaClient) {
     this.logger = vscode.window.createOutputChannel('My Notes');
 
-    // Create tree view
     this._view = vscode.window.createTreeView('myNotes', {
       treeDataProvider: this,
       showCollapseAll: true,
     });
 
-    // Set the view title
     if (this._view) {
       this._view.title = 'KIBELA NOTES';
     }
 
-    // Listen for auth state changes
     this.kibelaClient.onDidChangeAuthState(() => {
       this.refresh();
     });
@@ -325,14 +314,12 @@ export class MyNotesTreeDataProvider
       const recentlyViewed = await this.kibelaClient.getRecentlyViewedNotes();
       const likedNotes = await this.kibelaClient.getLikedNotes();
 
-      // 不正なノートを除外
       const isValidNote = (note: KibelaNote): boolean => {
         return (
           note && typeof note === 'object' && 'id' in note && 'title' in note
         );
       };
 
-      // Recently Viewed内の重複を削除（最初に出てきたものを残す）
       const seenIds = new Set<string>();
       const uniqueRecentlyViewed = recentlyViewed.filter((note) => {
         if (!isValidNote(note) || seenIds.has(note.id)) {
@@ -342,7 +329,6 @@ export class MyNotesTreeDataProvider
         return true;
       });
 
-      // 不正なノートを除外
       const validLikedNotes = likedNotes.filter(isValidNote);
 
       this.sections = [

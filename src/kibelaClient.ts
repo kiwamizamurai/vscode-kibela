@@ -34,7 +34,7 @@ export class KibelaClient {
   private client!: GraphQLClient;
   private noteContentCache: CacheManager<NoteContent>;
   private notesCache: CacheManager<KibelaNote[]>;
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5分
+  private readonly CACHE_TTL = 5 * 60 * 1000;
   private currentUserId: string | null = null;
   private logger: vscode.OutputChannel;
   private _onDidChangeAuthState = new vscode.EventEmitter<AuthState>();
