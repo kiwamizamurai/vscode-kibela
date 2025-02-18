@@ -48,7 +48,7 @@ Get your API token from:
 - [How to generate api token](https://github.com/kibela/kibela-api-v1-document?tab=readme-ov-file#%E3%82%A2%E3%82%AF%E3%82%BB%E3%82%B9%E3%83%88%E3%83%BC%E3%82%AF%E3%83%B3)
 
 > [!TIP]
-> This extension uses GraphQL schema introspection with `buildClientSchema`, `getIntrospectionQuery`, and `printSchema` from the `graphql` package to interact with Kibela's API.
+> This extension uses GraphQL schema introspection with `buildClientSchema`, `getIntrospectionQuery`, and `printSchema` from the `graphql` package to interact with Kibela's API. [For more detail](https://github.com/kiwamizamurai/vscode-kibela/blob/main/reverse_engineering/main.ts)
 
 ## ⚡️ Commands
 
