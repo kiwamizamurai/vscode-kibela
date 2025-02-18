@@ -1,3 +1,5 @@
 node_modules
 out
 *.vsix
+reverse_engineering/*/*.js
+reverse_engineering/*/*.js.map
