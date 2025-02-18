@@ -108,8 +108,12 @@ export class NoteTreeDataProvider
       this.sections = [];
 
       if (this.searchResults.length > 0) {
-        const groupNotes = this.searchResults.filter(note => note.groups && note.groups.length > 0);
-        const personalNotes = this.searchResults.filter(note => !note.groups || note.groups.length === 0);
+        const groupNotes = this.searchResults.filter(
+          (note) => note.groups && note.groups.length > 0
+        );
+        const personalNotes = this.searchResults.filter(
+          (note) => !note.groups || note.groups.length === 0
+        );
 
         this.sections.push({
           section: new vscode.TreeItem(
@@ -221,11 +225,13 @@ export class NoteTreeDataProvider
   private formatNoteData(note: Partial<KibelaNote>) {
     return {
       contentUpdatedAt: note.contentUpdatedAt || new Date().toISOString(),
-      author: note.author ? { 
-        id: note.author.id || '',
-        account: note.author.account || '',
-        realName: note.author.realName || '不明'
-      } : { id: '', account: '', realName: '不明' }
+      author: note.author
+        ? {
+            id: note.author.id || '',
+            account: note.author.account || '',
+            realName: note.author.realName || '不明',
+          }
+        : { id: '', account: '', realName: '不明' },
     };
   }
 
@@ -241,7 +247,9 @@ export class NoteTreeDataProvider
       arguments: [note],
     };
     const formattedData = this.formatNoteData(note);
-    const lastUpdated = new Date(formattedData.contentUpdatedAt).toLocaleDateString('ja-JP');
+    const lastUpdated = new Date(
+      formattedData.contentUpdatedAt
+    ).toLocaleDateString('ja-JP');
     treeItem.description = `${formattedData.author.realName} (${lastUpdated})`;
     return treeItem;
   }
@@ -355,11 +363,7 @@ export class MyNotesTreeDataProvider
         },
       ];
 
-      this.notes = [
-        ...myNotes,
-        ...uniqueRecentlyViewed,
-        ...validLikedNotes,
-      ];
+      this.notes = [...myNotes, ...uniqueRecentlyViewed, ...validLikedNotes];
     } catch (error) {
       vscode.window.showErrorMessage('Failed to refresh notes');
       this.logger?.appendLine(`Refresh error: ${error}`);
@@ -423,7 +427,9 @@ export class MyNotesTreeDataProvider
       arguments: [note],
     };
     const formattedData = this.formatNoteData(note);
-    const lastUpdated = new Date(formattedData.contentUpdatedAt).toLocaleDateString('ja-JP');
+    const lastUpdated = new Date(
+      formattedData.contentUpdatedAt
+    ).toLocaleDateString('ja-JP');
     treeItem.description = `${formattedData.author.realName} (${lastUpdated})`;
     return treeItem;
   }
@@ -431,11 +437,13 @@ export class MyNotesTreeDataProvider
   private formatNoteData(note: Partial<KibelaNote>) {
     return {
       contentUpdatedAt: note.contentUpdatedAt || new Date().toISOString(),
-      author: note.author ? { 
-        id: note.author.id || '',
-        account: note.author.account || '',
-        realName: note.author.realName || '不明'
-      } : { id: '', account: '', realName: '不明' }
+      author: note.author
+        ? {
+            id: note.author.id || '',
+            account: note.author.account || '',
+            realName: note.author.realName || '不明',
+          }
+        : { id: '', account: '', realName: '不明' },
     };
   }
 

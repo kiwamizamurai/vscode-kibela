@@ -32,7 +32,10 @@ export function activate(context: vscode.ExtensionContext) {
 
     log.appendLine('Initializing tree views');
     const searchTreeDataProvider = new NoteTreeDataProvider(kibelaClient);
-    vscode.window.registerTreeDataProvider('searchResults', searchTreeDataProvider);
+    vscode.window.registerTreeDataProvider(
+      'searchResults',
+      searchTreeDataProvider
+    );
 
     const myNotesTreeDataProvider = new MyNotesTreeDataProvider(kibelaClient);
     vscode.window.registerTreeDataProvider('myNotes', myNotesTreeDataProvider);
