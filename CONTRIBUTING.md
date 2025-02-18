@@ -44,16 +44,3 @@
    code .
    ```
 4. Press F5 to start debugging
-
-## Coding Style
-
-- Follow the existing code style
-- Use Biome for formatting and linting
-- Write meaningful commit messages
-
-## Reporting Issues
-
-- Use the GitHub issue tracker
-- Include VS Code version and extension version
-- Provide steps to reproduce the issue
-- Include relevant error messages
