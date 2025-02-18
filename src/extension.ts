@@ -4,6 +4,7 @@ import { KibelaClient } from './kibelaClient';
 import { NoteTreeDataProvider, MyNotesTreeDataProvider } from './noteTreeView';
 import { show } from './preview';
 import { KibelaNote } from './types';
+import { SearchHistory } from './searchHistory';
 
 let kibelaClient: KibelaClient;
 
@@ -13,6 +14,7 @@ export function activate(context: vscode.ExtensionContext) {
   log.appendLine('Kibela extension is now active');
   let noteTreeDataProvider: NoteTreeDataProvider | undefined;
   let groupTreeProvider: GroupTreeProvider | undefined;
+  const searchHistory = new SearchHistory(context);
 
   const updateAuthContext = (isAuthenticated: boolean) => {
     vscode.commands.executeCommand(
@@ -31,7 +33,10 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     log.appendLine('Initializing tree views');
-    const searchTreeDataProvider = new NoteTreeDataProvider(kibelaClient);
+    const searchTreeDataProvider = new NoteTreeDataProvider(
+      kibelaClient,
+      searchHistory
+    );
     vscode.window.registerTreeDataProvider(
       'searchResults',
       searchTreeDataProvider
@@ -180,7 +185,7 @@ export function activate(context: vscode.ExtensionContext) {
       }
       const provider = vscode.window.registerTreeDataProvider(
         'myNotes',
-        new NoteTreeDataProvider(kibelaClient)
+        new NoteTreeDataProvider(kibelaClient, searchHistory)
       );
     }
   );

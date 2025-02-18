@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from './kibelaClient';
 import { KibelaNote } from './types';
+import { SearchHistory } from './searchHistory';
 
 interface TreeSection {
   section: vscode.TreeItem;
@@ -35,7 +36,10 @@ export class NoteTreeDataProvider
   private isLoading = false;
   private logger: vscode.OutputChannel;
 
-  constructor(private kibelaClient: KibelaClient) {
+  constructor(
+    private kibelaClient: KibelaClient,
+    private searchHistory: SearchHistory
+  ) {
     this.logger = vscode.window.createOutputChannel('Kibela Notes');
 
     this._view = vscode.window.createTreeView('searchResults', {
@@ -72,20 +76,32 @@ export class NoteTreeDataProvider
     });
 
     vscode.commands.registerCommand('kibela.showSearch', async () => {
-      const searchBox = vscode.window.createInputBox();
-      searchBox.placeholder = 'Search notes...';
-      searchBox.show();
+      const history = await this.searchHistory.getHistory();
 
-      searchBox.onDidAccept(async () => {
-        const query = searchBox.value;
+      const quickPick = vscode.window.createQuickPick();
+      quickPick.placeholder = 'Search notes...';
+      quickPick.items = [
+        ...history.map((h) => ({ label: h, description: 'Recent search' })),
+      ];
+      quickPick.onDidChangeValue((value) => {
+        quickPick.items = [
+          ...history
+            .filter((h) => h.toLowerCase().includes(value.toLowerCase()))
+            .map((h) => ({ label: h, description: 'Recent search' })),
+        ];
+      });
+
+      quickPick.onDidAccept(async () => {
+        const query = quickPick.value || quickPick.selectedItems[0]?.label;
         if (query) {
           try {
             this.isLoading = true;
             this._onDidChangeTreeData.fire(undefined);
             this.searchResults = await this.kibelaClient.searchNotes(query);
+            await this.searchHistory.addSearch(query);
             this.isLoading = false;
             this.refresh();
-            searchBox.hide();
+            quickPick.hide();
           } catch (error) {
             this.isLoading = false;
             this._onDidChangeTreeData.fire(undefined);
@@ -94,9 +110,7 @@ export class NoteTreeDataProvider
         }
       });
 
-      searchBox.onDidHide(() => {
-        searchBox.dispose();
-      });
+      quickPick.show();
     });
   }
 
