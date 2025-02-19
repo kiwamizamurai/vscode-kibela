@@ -128,13 +128,6 @@ export class NoteTreeDataProvider
       this.sections = [];
 
       if (this.searchResults.length > 0) {
-        const groupNotes = this.searchResults.filter(
-          (note) => note.groups && note.groups.length > 0
-        );
-        const personalNotes = this.searchResults.filter(
-          (note) => !note.groups || note.groups.length === 0
-        );
-
         this.sections.push({
           section: new vscode.TreeItem(
             'All Results',
@@ -142,26 +135,6 @@ export class NoteTreeDataProvider
           ),
           items: this.searchResults,
         });
-
-        if (personalNotes.length > 0) {
-          this.sections.push({
-            section: new vscode.TreeItem(
-              'Personal Notes',
-              vscode.TreeItemCollapsibleState.Expanded
-            ),
-            items: personalNotes,
-          });
-        }
-
-        if (groupNotes.length > 0) {
-          this.sections.push({
-            section: new vscode.TreeItem(
-              'Group Notes',
-              vscode.TreeItemCollapsibleState.Expanded
-            ),
-            items: groupNotes,
-          });
-        }
       }
 
       this.notes = [...this.searchResults];
