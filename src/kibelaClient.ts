@@ -156,6 +156,8 @@ export class KibelaClient {
           isArchived: settings.isArchived || false,
           sortBy: settings.sortBy || 'RELEVANT',
           resources: settings.resources,
+          userIds: settings.userIds,
+          folderIds: settings.folderIds,
         }
       );
       return response.search.edges

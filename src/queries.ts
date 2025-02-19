@@ -7,6 +7,8 @@ export const SEARCH_NOTES = gql`
     $isArchived: Boolean = false,
     $sortBy: SearchSortKind = RELEVANT,
     $resources: [SearchResourceKind!]
+    $userIds: [ID!],
+    $folderIds: [ID!]
   ) {
     search(
       query: $query,
@@ -14,7 +16,9 @@ export const SEARCH_NOTES = gql`
       coediting: $coediting,
       isArchived: $isArchived,
       sortBy: $sortBy,
-      resources: $resources
+      resources: $resources,
+      userIds: $userIds,
+      folderIds: $folderIds
     ) {
       edges {
         node {
