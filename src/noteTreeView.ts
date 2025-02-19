@@ -193,9 +193,9 @@ export class NoteTreeDataProvider
         ? {
             id: note.author.id || '',
             account: note.author.account || '',
-            realName: note.author.realName || '不明',
+            realName: note.author.realName || 'unknown',
           }
-        : { id: '', account: '', realName: '不明' },
+        : { id: '', account: '', realName: 'unknown' },
     };
   }
 
@@ -405,9 +405,9 @@ export class MyNotesTreeDataProvider
         ? {
             id: note.author.id || '',
             account: note.author.account || '',
-            realName: note.author.realName || '不明',
+            realName: note.author.realName || 'unknown',
           }
-        : { id: '', account: '', realName: '不明' },
+        : { id: '', account: '', realName: 'unknown' },
     };
   }
 

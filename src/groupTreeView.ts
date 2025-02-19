@@ -70,13 +70,13 @@ export class GroupTreeProvider
       case 'group': {
         const groupItem = element as GroupTreeItem;
         const statusIcon = groupItem.isPrivate ? '🔒' : '👥';
-        const joinStatus = groupItem.isJoined ? '参加中' : '未参加';
+        const joinStatus = groupItem.isJoined ? 'joined' : 'unjoined';
         return {
           ...baseItem,
           collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
           iconPath: new vscode.ThemeIcon('organization'),
           description: `${statusIcon} ${joinStatus} - ${
-            groupItem.description || '説明なし'
+            groupItem.description || 'no description'
           }`,
         };
       }
