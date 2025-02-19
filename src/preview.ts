@@ -208,46 +208,52 @@ function updateContent(
 
   const styles = `
     <style>
+      :root {
+        --vscode-foreground: var(--vscode-editor-foreground);
+        --vscode-background: var(--vscode-editor-background);
+        --vscode-border: var(--vscode-panel-border);
+        --vscode-accent: var(--vscode-textLink-foreground);
+        --vscode-secondary-text: var(--vscode-descriptionForeground);
+      }
       body {
         padding: 20px;
         max-width: 1000px;
         margin: 0 auto;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-family: var(--vscode-font-family);
         line-height: 1.6;
+        color: var(--vscode-foreground);
+        background-color: var(--vscode-background);
       }
       .metadata {
         margin-bottom: 30px;
         padding: 15px;
-        background-color: #f8f9fa;
+        background-color: var(--vscode-sideBar-background);
         border-radius: 6px;
-        border-left: 4px solid #0366d6;
+        border-left: 4px solid var(--vscode-accent);
       }
       .metadata > div {
         margin: 5px 0;
       }
       .author {
         font-weight: bold;
-        color: #24292e;
+        color: var(--vscode-foreground);
       }
       .last-updated, .published {
-        color: #586069;
+        color: var(--vscode-secondary-text);
         font-size: 0.9em;
       }
       .draft {
         display: inline-block;
         padding: 2px 6px;
-        background-color: #ffd33d;
-        color: #24292e;
+        background-color: var(--vscode-statusBarItem-warningBackground);
+        color: var(--vscode-statusBarItem-warningForeground);
         border-radius: 3px;
         font-size: 0.9em;
-      }
-      .groups, .folders {
-        margin-top: 15px;
       }
       .groups h3, .folders h3, .attachments h3 {
         margin: 10px 0 5px;
         font-size: 1em;
-        color: #24292e;
+        color: var(--vscode-foreground);
       }
       .attachment-grid {
         display: grid;
@@ -256,15 +262,15 @@ function updateContent(
         margin-top: 10px;
       }
       .attachment-item {
-        border: 1px solid #e1e4e8;
+        border: 1px solid var(--vscode-border);
         border-radius: 6px;
         padding: 8px;
-        background: white;
+        background: var(--vscode-sideBar-background);
         transition: all 0.2s ease;
         cursor: pointer;
       }
       .attachment-item:hover {
-        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        box-shadow: 0 2px 8px var(--vscode-widget-shadow);
       }
       .attachment-item img {
         width: 100%;
@@ -272,12 +278,12 @@ function updateContent(
         max-height: 150px;
         object-fit: contain;
         border-radius: 4px;
-        background: #f6f8fa;
+        background: var(--vscode-background);
       }
       .attachment-name {
         margin-top: 8px;
         font-size: 0.9em;
-        color: #24292e;
+        color: var(--vscode-foreground);
         word-break: break-word;
         text-align: center;
       }
@@ -293,7 +299,7 @@ function updateContent(
       }
       .attachment-type {
         font-size: 0.8em;
-        color: #586069;
+        color: var(--vscode-secondary-text);
         margin-top: 4px;
       }
       .content img {
@@ -305,28 +311,27 @@ function updateContent(
       }
       .comments {
         margin-top: 30px;
-        border-top: 1px solid #e1e4e8;
+        border-top: 1px solid var(--vscode-border);
         padding-top: 20px;
       }
       .comment {
-        background: #f6f8fa;
+        background: var(--vscode-sideBar-background);
         border-radius: 6px;
         padding: 12px;
         margin-bottom: 16px;
       }
       .comment-author {
         font-weight: bold;
-        color: #24292e;
+        color: var(--vscode-foreground);
       }
       .comment-date {
         font-size: 0.8em;
-        color: #586069;
+        color: var(--vscode-secondary-text);
         margin: 4px 0;
       }
       .comment-content {
         margin-top: 8px;
       }
-      /* モーダル関連のスタイル */
       .modal {
         display: none;
         position: fixed;
@@ -352,7 +357,7 @@ function updateContent(
         max-height: 90vh;
         object-fit: contain;
         border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 4px 12px var(--vscode-widget-shadow);
       }
       .modal-close {
         position: absolute;
