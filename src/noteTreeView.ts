@@ -16,22 +16,17 @@ interface AuthItem {
 }
 
 export class NoteTreeDataProvider
-  implements vscode.TreeDataProvider<TreeSection | KibelaNote | AuthItem>
+  implements vscode.TreeDataProvider<KibelaNote | AuthItem>
 {
   private _onDidChangeTreeData: vscode.EventEmitter<
-    TreeSection | KibelaNote | AuthItem | undefined
-  > = new vscode.EventEmitter<
-    TreeSection | KibelaNote | AuthItem | undefined
-  >();
+    KibelaNote | AuthItem | undefined
+  > = new vscode.EventEmitter<KibelaNote | AuthItem | undefined>();
   readonly onDidChangeTreeData: vscode.Event<
-    TreeSection | KibelaNote | AuthItem | undefined
+    KibelaNote | AuthItem | undefined
   > = this._onDidChangeTreeData.event;
 
-  private sections: TreeSection[] = [];
   private notes: KibelaNote[] = [];
-  private _view:
-    | vscode.TreeView<TreeSection | KibelaNote | AuthItem>
-    | undefined;
+  private _view: vscode.TreeView<KibelaNote | AuthItem> | undefined;
   private searchBox: vscode.InputBox | undefined;
   private searchResults: KibelaNote[] = [];
   private isLoading = false;
@@ -124,19 +119,6 @@ export class NoteTreeDataProvider
     try {
       this.isLoading = true;
       this._onDidChangeTreeData.fire(undefined);
-
-      this.sections = [];
-
-      if (this.searchResults.length > 0) {
-        this.sections.push({
-          section: new vscode.TreeItem(
-            'All Results',
-            vscode.TreeItemCollapsibleState.Expanded
-          ),
-          items: this.searchResults,
-        });
-      }
-
       this.notes = [...this.searchResults];
     } catch (error) {
       vscode.window.showErrorMessage('Failed to refresh search results');
@@ -147,7 +129,7 @@ export class NoteTreeDataProvider
     }
   }
 
-  getTreeItem(element: TreeSection | KibelaNote | AuthItem): vscode.TreeItem {
+  getTreeItem(element: KibelaNote | AuthItem): vscode.TreeItem {
     if (this.isLoading) {
       const item = new vscode.TreeItem(
         'Loading...',
@@ -155,10 +137,6 @@ export class NoteTreeDataProvider
       );
       item.iconPath = new vscode.ThemeIcon('loading~spin');
       return item;
-    }
-
-    if ('section' in element && 'items' in element) {
-      return element.section;
     }
 
     if ('id' in element && 'title' in element) {
@@ -173,19 +151,14 @@ export class NoteTreeDataProvider
   }
 
   getChildren(
-    element?: TreeSection | KibelaNote | AuthItem
-  ): (TreeSection | KibelaNote | AuthItem)[] {
+    element?: KibelaNote | AuthItem
+  ): (KibelaNote | AuthItem)[] {
     if (!element) {
       if (this.isLoading) {
-        return [{ section: new vscode.TreeItem('Loading...'), items: [] }];
+        return [];
       }
-      return this.sections;
+      return this.notes;
     }
-
-    if ('section' in element) {
-      return element.items;
-    }
-
     return [];
   }
 
