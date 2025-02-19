@@ -150,9 +150,7 @@ export class NoteTreeDataProvider
     );
   }
 
-  getChildren(
-    element?: KibelaNote | AuthItem
-  ): (KibelaNote | AuthItem)[] {
+  getChildren(element?: KibelaNote | AuthItem): (KibelaNote | AuthItem)[] {
     if (!element) {
       if (this.isLoading) {
         return [];
