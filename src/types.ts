@@ -3,46 +3,19 @@ import { TreeItem } from 'vscode';
 export interface KibelaNote {
   id: string;
   title: string;
-  content: string;
   contentHtml: string;
   contentUpdatedAt: string;
-  publishedAt: string;
-  author: {
-    id?: string;
-    account: string;
-    realName: string;
-  };
-  groups: {
-    id: string;
-    name: string;
-  }[];
-  folders: {
-    nodes: {
-      id: string;
-      name: string;
-      fullName: string;
-      path: string;
-    }[];
-  };
+  publishedAt?: string;
+  author: KibelaUser;
   comments: {
-    nodes: {
-      id: string;
-      content: string;
-      contentHtml: string;
-      author: {
-        account: string;
-        realName: string;
-      };
-      createdAt: string;
-    }[];
+    nodes: KibelaComment[];
+  };
+  groups: KibelaGroup[];
+  folders: {
+    nodes: KibelaFolder[];
   };
   attachments: {
-    nodes: {
-      id: string;
-      name: string;
-      dataUrl: string;
-      mimeType: string;
-    }[];
+    nodes: KibelaAttachment[];
   };
 }
 
@@ -94,8 +67,8 @@ export interface KibelaAttachment {
   id: string;
   name: string;
   url: string;
-  dataUrl: string;
-  mimeType: string;
+  contentType: string;
+  size: number;
 }
 
 export interface NoteContentResponse {
@@ -142,22 +115,17 @@ export interface KibelaFolder {
   name: string;
   fullName: string;
   path: string;
-  canBeManaged: boolean;
-  parent: {
+  parent?: {
     id: string;
     name: string;
-  } | null;
+  };
 }
 
 export interface KibelaGroup {
   id: string;
   name: string;
-  description: string;
-  isPrivate: boolean;
-  canBeManaged: boolean;
-  canBeJoinedBySelf: boolean;
+  description?: string;
   isJoined: boolean;
-  folders?: KibelaFolder[];
 }
 
 export interface GroupsResponse {
@@ -181,6 +149,7 @@ export interface Note {
   contentHtml: string;
   contentUpdatedAt: string;
   publishedAt?: string;
+  path: string;
   author: {
     id: string;
     account: string;
@@ -294,10 +263,20 @@ export interface KibelaUser {
   id: string;
   account: string;
   realName: string;
+  avatarImage?: {
+    url: string;
+  };
 }
 
 export interface UsersResponse {
   users: {
     nodes: KibelaUser[];
   };
+}
+
+export interface KibelaComment {
+  id: string;
+  content: string;
+  author: KibelaUser;
+  createdAt: string;
 }

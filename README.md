@@ -50,11 +50,6 @@ Get your API token from:
 > [!TIP]
 > This extension uses GraphQL schema introspection with `buildClientSchema`, `getIntrospectionQuery`, and `printSchema` from the `graphql` package to interact with Kibela's API. [For more detail](https://github.com/kiwamizamurai/vscode-kibela/blob/main/reverse_engineering/main.ts)
 
-## ⚡️ Commands
-
-- `Kibela: Authenticate` - Setup your Kibela credentials
-- `Kibela: Search Notes` - Search through your notes
-
 ## Upcoming Features
 <details>
 <summary>Here</summary>
@@ -81,7 +76,3 @@ Contributions welcome! Please read our [contributing guidelines](CONTRIBUTING.md
 ## 📝 License
 
 MIT
-
-## 🙏 Credits
-
-Built with ❤️ for the Kibela users

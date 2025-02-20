@@ -29,6 +29,7 @@ export function activate(context: vscode.ExtensionContext) {
 export function show(
   content: string,
   title: string,
+  path: string,
   comments: {
     content: string;
     author: { realName: string; account: string };
@@ -57,12 +58,14 @@ export function show(
       publishedAt,
       groups,
       folders,
-      attachments
+      attachments,
+      path,
+      title
     );
   } else {
     currentPanel = vscode.window.createWebviewPanel(
       viewType,
-      title,
+      path,
       columnToShowIn || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -84,7 +87,9 @@ export function show(
       publishedAt,
       groups,
       folders,
-      attachments
+      attachments,
+      path,
+      title
     );
 
     currentPanel.onDidDispose(() => {
@@ -106,10 +111,24 @@ function updateContent(
   publishedAt?: Date,
   groups?: { name: string }[],
   folders?: { fullName: string; path: string }[],
-  attachments?: { name: string; dataUrl: string; mimeType: string }[]
+  attachments?: { name: string; dataUrl: string; mimeType: string }[],
+  notePath?: string,
+  title?: string
 ) {
+  const config = vscode.workspace.getConfiguration('kibela');
+  const team = config.get<string>('team');
+  const baseUrl = team ? `https://${team}.kibe.la` : '';
+
   const metadataHtml = `
     <div class="metadata">
+      ${
+        baseUrl && notePath
+          ? `<div class="note-link">
+              <h1 class="note-title">${title}</h1>
+              <a href="${baseUrl}${notePath}" target="_blank" class="kibela-link" data-url="${baseUrl}${notePath}">View on Kibela</a>
+            </div>`
+          : ''
+      }
       ${
         author
           ? `<div class="author">Author: ${author.realName} (@${author.account})</div>`
@@ -146,7 +165,10 @@ function updateContent(
           <h3>Folders</h3>
           <ul>
             ${folders
-              .map((folder) => `<li>${folder.fullName} (${folder.path})</li>`)
+              .map(
+                (folder) =>
+                  `<li>${folder.fullName} (<a href="${baseUrl}${folder.path}" target="_blank" class="kibela-link" data-url="${baseUrl}${folder.path}">View folder</a>)</li>`
+              )
               .join('')}
           </ul>
         </div>
@@ -223,6 +245,21 @@ function updateContent(
         line-height: 1.6;
         color: var(--vscode-foreground);
         background-color: var(--vscode-background);
+      }
+      .note-link {
+        margin-bottom: 10px;
+      }
+      .note-title {
+        margin: 0 0 10px 0;
+        font-size: 1.8em;
+        color: var(--vscode-foreground);
+      }
+      .note-link a {
+        color: var(--vscode-accent);
+        text-decoration: none;
+      }
+      .note-link a:hover {
+        text-decoration: underline;
       }
       .metadata {
         margin-bottom: 30px;
@@ -401,6 +438,31 @@ function updateContent(
       const modalImg = document.getElementById('modalImage');
       const modalCaption = document.getElementById('modalCaption');
       const closeBtn = document.querySelector('.modal-close');
+
+      // Add context menu for Kibela link
+      document.querySelector('.kibela-link').addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        const url = this.getAttribute('data-url');
+        navigator.clipboard.writeText(url).then(() => {
+          // Show feedback
+          const feedback = document.createElement('div');
+          feedback.textContent = 'URL copied!';
+          feedback.style.position = 'fixed';
+          feedback.style.left = e.clientX + 'px';
+          feedback.style.top = e.clientY + 'px';
+          feedback.style.background = 'var(--vscode-editor-background)';
+          feedback.style.color = 'var(--vscode-editor-foreground)';
+          feedback.style.padding = '4px 8px';
+          feedback.style.borderRadius = '4px';
+          feedback.style.border = '1px solid var(--vscode-border)';
+          feedback.style.zIndex = '1000';
+          document.body.appendChild(feedback);
+          
+          setTimeout(() => {
+            feedback.remove();
+          }, 1500);
+        });
+      });
 
       document.querySelectorAll('.attachment-item img, .content img').forEach(img => {
         img.addEventListener('click', function() {

@@ -6,7 +6,7 @@ export const SEARCH_NOTES = gql`
     $coediting: Boolean,
     $isArchived: Boolean = false,
     $sortBy: SearchSortKind = RELEVANT,
-    $resources: [SearchResourceKind!]
+    $resources: [SearchResourceKind!],
     $userIds: [ID!],
     $folderIds: [ID!]
   ) {
@@ -162,9 +162,9 @@ export const GET_GROUPS = gql`
 `;
 
 export const GET_GROUP_FOLDERS = gql`
-  query GetGroupFolders($groupId: ID!) {
+  query GetGroupFolders($groupId: ID!, $parentFolderId: ID) {
     group(id: $groupId) {
-      folders(first: 30, active: true) {
+      folders(first: 30, active: true, parentFolderId: $parentFolderId) {
         nodes {
           id
           name
@@ -202,6 +202,8 @@ export const GET_NOTE = gql`
       contentHtml
       contentUpdatedAt
       publishedAt
+      url
+      path
       attachments(first: 10) {
         nodes {
           id

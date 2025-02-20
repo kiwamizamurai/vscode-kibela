@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
-import { KibelaClient } from './kibelaClient';
-import { KibelaNote } from './types';
+import { KibelaClient } from '../../api/kibelaClient';
+import { KibelaNote } from '../../types';
 
 export class SearchManager {
   private searchBox: vscode.InputBox | undefined;

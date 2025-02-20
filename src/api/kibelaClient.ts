@@ -1,13 +1,19 @@
-import { GraphQLClient, gql } from 'graphql-request';
+import { GraphQLClient } from 'graphql-request';
 import * as vscode from 'vscode';
-import { CacheManager } from './cache';
-import * as queries from './queries';
+import { CacheManager } from '../utils/cache';
 import {
   GET_FOLDER_NOTES,
   GET_GROUPS,
   GET_GROUP_FOLDERS,
   GET_GROUP_NOTES,
+  GET_LIKED_NOTES,
+  GET_MY_NOTES,
   GET_NOTE,
+  GET_NOTE_CONTENT,
+  GET_RECENTLY_VIEWED_NOTES,
+  GET_USERS,
+  SEARCH_NOTES,
+  GET_CURRENT_USER,
 } from './queries';
 import {
   AuthState,
@@ -30,8 +36,16 @@ import {
   NotesResponse,
   SearchResponse,
   UsersResponse,
-} from './types';
-import { SearchSettings } from './searchSettings';
+} from '../types';
+
+export interface SearchSettings {
+  coediting?: boolean;
+  isArchived?: boolean;
+  sortBy?: 'RELEVANT' | 'RECENT';
+  resources?: ('NOTE' | 'COMMENT' | 'ATTACHMENT')[];
+  folderIds?: string[];
+  userIds?: string[];
+}
 
 export class KibelaClient {
   private client!: GraphQLClient;
@@ -49,6 +63,7 @@ export class KibelaClient {
   readonly onDidChangeAuthState = this._onDidChangeAuthState.event;
   private authState: AuthState = { isAuthenticated: false };
   private _team: string;
+  private _token: string;
   private authCheckPromise: Promise<void> | null = null;
 
   constructor(team: string, token: string, logger: vscode.OutputChannel) {
@@ -59,7 +74,9 @@ export class KibelaClient {
     this.groupsCache = new CacheManager(this.GROUPS_CACHE_TTL);
     this.groupFoldersCache = new CacheManager(this.GROUPS_CACHE_TTL);
     this._team = team;
+    this._token = token;
     this.initializeClient(team, token);
+    this.checkAuthState();
   }
 
   private initializeClient(team: string, token: string): void {
@@ -72,13 +89,33 @@ export class KibelaClient {
     this.authCheckPromise = this.checkAuthState();
   }
 
+  private async checkAuth(): Promise<void> {
+    try {
+      await this.getCurrentUserId();
+      this.authState = { isAuthenticated: true };
+      this._onDidChangeAuthState.fire(this.authState);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.currentUserId = null;
+      this.authState = {
+        isAuthenticated: false,
+        error: errorMessage,
+      };
+      this._onDidChangeAuthState.fire(this.authState);
+      this.clearCaches();
+    }
+  }
+
   private async checkAuthState() {
     try {
       await this.getCurrentUserId();
       this.authState = { isAuthenticated: true };
       this._onDidChangeAuthState.fire(this.authState);
-    } catch (error) {
-      this.handleAuthError(error as Error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      this.handleAuthError(new Error(errorMessage));
     }
   }
 
@@ -113,28 +150,42 @@ export class KibelaClient {
     return this.authState.isAuthenticated;
   }
 
-  private logError(method: string, error: KibelaError) {
-    this.logger.appendLine(`[ERROR] ${method}: ${error.message}`);
-    if (error.response?.errors) {
-      this.logger.appendLine(JSON.stringify(error.response.errors, null, 2));
+  private logError(method: string, error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    this.logger.appendLine(`[ERROR] ${method}: ${errorMessage}`);
+
+    const kibelaError = error as KibelaError;
+    if (kibelaError.response?.errors) {
+      this.logger.appendLine(
+        JSON.stringify(kibelaError.response.errors, null, 2)
+      );
     }
+
     if (this.isAuthenticationError(error)) {
-      this.handleAuthError(error);
+      this.handleAuthError(new Error(errorMessage));
       vscode.window.showErrorMessage('Please login to Kibela to continue');
     }
   }
 
-  private isAuthenticationError(error: KibelaError): boolean {
-    const is403 = error.message?.includes('403');
+  private isAuthenticationError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+
+    const errorMessage = error.message.toLowerCase();
+    const is403 = errorMessage.includes('403');
     const hasUnauthorizedMessage =
-      error.message?.toLowerCase().includes('unauthorized') ||
-      error.message?.toLowerCase().includes('authentication') ||
-      (error.response?.errors?.some(
-        (e) =>
+      errorMessage.includes('unauthorized') ||
+      errorMessage.includes('authentication');
+
+    const kibelaError = error as KibelaError;
+    if (kibelaError.response?.errors) {
+      const hasUnauthorizedErrorMessage = kibelaError.response.errors.some(
+        (e: { message?: string }) =>
           e.message?.toLowerCase().includes('unauthorized') ||
           e.message?.toLowerCase().includes('authentication')
-      ) ??
-        false);
+      );
+
+      return is403 || hasUnauthorizedMessage || hasUnauthorizedErrorMessage;
+    }
 
     return is403 || hasUnauthorizedMessage;
   }
@@ -148,23 +199,20 @@ export class KibelaClient {
     }
 
     try {
-      const response = await this.client.request<SearchResponse>(
-        queries.SEARCH_NOTES,
-        {
-          query,
-          coediting: settings.coediting,
-          isArchived: settings.isArchived || false,
-          sortBy: settings.sortBy || 'RELEVANT',
-          resources: settings.resources,
-          userIds: settings.userIds,
-          folderIds: settings.folderIds,
-        }
-      );
+      const response = await this.client.request<SearchResponse>(SEARCH_NOTES, {
+        query,
+        coediting: settings.coediting,
+        isArchived: settings.isArchived || false,
+        sortBy: settings.sortBy || 'RELEVANT',
+        resources: settings.resources,
+        userIds: settings.userIds,
+        folderIds: settings.folderIds,
+      });
       return response.search.edges
         .filter((edge) => edge.node.document !== null)
         .map((edge) => edge.node.document as KibelaNote);
     } catch (error) {
-      this.logError('searchNotes', error as KibelaError);
+      this.logError('searchNotes', error);
       throw new Error('Failed to search notes');
     }
   }
@@ -183,9 +231,7 @@ export class KibelaClient {
       }
 
       this.logger.appendLine('Fetching my notes from API');
-      const response = await this.client.request<NotesResponse>(
-        queries.GET_MY_NOTES
-      );
+      const response = await this.client.request<NotesResponse>(GET_MY_NOTES);
       const notes = response.currentUser.latestNotes.edges.map(
         (edge) => edge.node
       );
@@ -193,7 +239,7 @@ export class KibelaClient {
       this.notesCache.set(cacheKey, notes);
       return notes;
     } catch (error) {
-      this.logError('getMyNotes', error as KibelaError);
+      this.logError('getMyNotes', error);
       throw new Error('Failed to fetch notes');
     }
   }
@@ -212,7 +258,7 @@ export class KibelaClient {
 
       this.logger.appendLine(`Fetching note content for ${id}`);
       const response = await this.client.request<NoteContentResponse>(
-        queries.GET_NOTE_CONTENT,
+        GET_NOTE_CONTENT,
         { id }
       );
       const { contentHtml, comments, attachments } = response.note;
@@ -225,7 +271,7 @@ export class KibelaClient {
       this.noteContentCache.set(id, result);
       return result;
     } catch (error) {
-      this.logError('getNoteContent', error as KibelaError);
+      this.logError('getNoteContent', error);
       throw new Error('Failed to fetch note content');
     }
   }
@@ -236,13 +282,12 @@ export class KibelaClient {
     }
 
     try {
-      const response = await this.client.request<CurrentUserResponse>(
-        queries.GET_CURRENT_USER
-      );
+      const response =
+        await this.client.request<CurrentUserResponse>(GET_CURRENT_USER);
       this.currentUserId = response.currentUser.id;
       return this.currentUserId;
     } catch (error) {
-      this.logError('getCurrentUserId', error as KibelaError);
+      this.logError('getCurrentUserId', error);
       throw new Error('Failed to get current user ID');
     }
   }
@@ -255,7 +300,7 @@ export class KibelaClient {
     try {
       const userId = await this.getCurrentUserId();
       const response = await this.client.request<SearchResponse>(
-        queries.GET_LIKED_NOTES,
+        GET_LIKED_NOTES,
         {
           userId: [userId],
         }
@@ -265,7 +310,7 @@ export class KibelaClient {
         .filter((edge) => edge.node.document !== null)
         .map((edge) => edge.node.document as KibelaNote);
     } catch (error) {
-      this.logError('getLikedNotes', error as KibelaError);
+      this.logError('getLikedNotes', error);
       throw new Error('Failed to fetch liked notes');
     }
   }
@@ -277,13 +322,13 @@ export class KibelaClient {
 
     try {
       const response = await this.client.request<NoteBrowsingHistoryResponse>(
-        queries.GET_RECENTLY_VIEWED_NOTES
+        GET_RECENTLY_VIEWED_NOTES
       );
       return response.noteBrowsingHistories.nodes.map(
         (history) => history.note
       );
     } catch (error) {
-      this.logError('getRecentlyViewedNotes', error as KibelaError);
+      this.logError('getRecentlyViewedNotes', error);
       throw new Error('Failed to fetch recently viewed notes');
     }
   }
@@ -311,18 +356,21 @@ export class KibelaClient {
       this.groupsCache.set(cacheKey, groups);
       return groups;
     } catch (error) {
-      this.logError('getGroups', error as KibelaError);
+      this.logError('getGroups', error);
       throw new Error('Failed to fetch groups');
     }
   }
 
-  async getGroupFolders(groupId: string): Promise<KibelaFolder[]> {
+  async getGroupFolders(
+    groupId: string,
+    parentFolderId?: string
+  ): Promise<KibelaFolder[]> {
     if (!this.isAuthenticated()) {
       throw new Error('Not authenticated');
     }
 
     try {
-      const cacheKey = `group_folders_${groupId}`;
+      const cacheKey = `group_folders_${groupId}_${parentFolderId || 'root'}`;
       const cached = this.groupFoldersCache.get(cacheKey);
       if (cached) {
         this.logger.appendLine(`Returning cached folders for group ${groupId}`);
@@ -332,13 +380,13 @@ export class KibelaClient {
       this.logger.appendLine(`Fetching folders for group ${groupId} from API`);
       const response = await this.client.request<FoldersResponse>(
         GET_GROUP_FOLDERS,
-        { groupId }
+        { groupId, parentFolderId }
       );
       const folders = response.group.folders.nodes;
       this.groupFoldersCache.set(cacheKey, folders);
       return folders;
     } catch (error) {
-      this.logError('getGroupFolders', error as KibelaError);
+      this.logError('getGroupFolders', error);
       throw new Error('Failed to fetch group folders');
     }
   }
@@ -355,7 +403,7 @@ export class KibelaClient {
       );
       return data.group.notes.nodes;
     } catch (error) {
-      this.logError('getGroupNotes', error as KibelaError);
+      this.logError('getGroupNotes', error);
       throw new Error('Failed to fetch group notes');
     }
   }
@@ -372,7 +420,7 @@ export class KibelaClient {
       );
       return data.folder.notes.nodes;
     } catch (error) {
-      this.logError('getFolderNotes', error as KibelaError);
+      this.logError('getFolderNotes', error);
       throw new Error('Failed to fetch folder notes');
     }
   }
@@ -412,15 +460,34 @@ export class KibelaClient {
       }
 
       this.logger.appendLine('Fetching users from API');
-      const response = await this.client.request<UsersResponse>(
-        queries.GET_USERS
-      );
+      const response = await this.client.request<UsersResponse>(GET_USERS);
       const users = response.users.nodes;
       this.usersCache.set(cacheKey, users);
       return users;
     } catch (error) {
-      this.logError('getUsers', error as KibelaError);
+      this.logError('getUsers', error);
       throw new Error('Failed to fetch users');
+    }
+  }
+
+  async getFolders(): Promise<KibelaFolder[]> {
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const groups = await this.getGroups();
+      const allFolders: KibelaFolder[] = [];
+
+      for (const group of groups) {
+        const folders = await this.getGroupFolders(group.id);
+        allFolders.push(...folders);
+      }
+
+      return allFolders;
+    } catch (error) {
+      this.logError('getFolders', error);
+      throw new Error('Failed to fetch folders');
     }
   }
 }

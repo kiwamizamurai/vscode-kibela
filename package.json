@@ -2,7 +2,7 @@
   "name": "kibela-vscode",
   "displayName": "Kibela",
   "description": "Kibela integration for VS Code",
-  "version": "2.4.4",
+  "version": "2.5.0",
   "publisher": "kiwamizamurai-vscode",
   "author": {
     "name": "kiwamizamurai",

@@ -1,18 +1,17 @@
 import * as vscode from 'vscode';
-import { KibelaClient } from './kibelaClient';
-import { KibelaNote } from './types';
-import { SearchHistory } from './searchHistory';
-import { SearchSettingsManager } from './searchSettings';
+import { KibelaClient } from '../../api/kibelaClient';
+import { KibelaNote } from '../../types';
+import { SearchHistory } from '../../features/search/searchHistory';
+import { SearchSettingsManager } from '../../features/search/settings';
+import { AuthManager, AuthItem } from '../../features/auth/auth';
+
+const isValidNote = (note: KibelaNote): boolean => {
+  return note && typeof note === 'object' && 'id' in note && 'title' in note;
+};
 
 interface TreeSection {
   section: vscode.TreeItem;
   items: KibelaNote[];
-}
-
-interface AuthItem {
-  type: 'auth';
-  label: string;
-  command: string;
 }
 
 export class NoteTreeDataProvider
@@ -35,7 +34,8 @@ export class NoteTreeDataProvider
   constructor(
     private kibelaClient: KibelaClient,
     private searchHistory: SearchHistory,
-    private searchSettings: SearchSettingsManager
+    private searchSettings: SearchSettingsManager,
+    private authManager: AuthManager
   ) {
     this.logger = vscode.window.createOutputChannel('Kibela Notes');
 
@@ -47,30 +47,6 @@ export class NoteTreeDataProvider
     if (this._view) {
       this._view.title = 'KIBELA SEARCH RESULTS';
     }
-
-    vscode.commands.registerCommand('kibela.login', async () => {
-      const team = await vscode.window.showInputBox({
-        prompt: 'Enter your Kibela team name',
-        placeHolder: 'e.g. example',
-      });
-      const token = await vscode.window.showInputBox({
-        prompt: 'Enter your Kibela API token',
-        password: true,
-      });
-      if (team && token) {
-        await this.kibelaClient.login(team, token);
-        await this.refresh();
-      }
-    });
-
-    vscode.commands.registerCommand('kibela.logout', async () => {
-      await this.kibelaClient.logout();
-      await this.refresh();
-    });
-
-    this.kibelaClient.onDidChangeAuthState(() => {
-      this.refresh();
-    });
 
     vscode.commands.registerCommand('kibela.showSearch', async () => {
       const history = await this.searchHistory.getHistory();
@@ -99,10 +75,10 @@ export class NoteTreeDataProvider
               query,
               settings
             );
+            this.searchResults = this.searchResults.filter(isValidNote);
             await this.searchHistory.addSearch(query);
             this.isLoading = false;
-            this.refresh();
-            quickPick.hide();
+            this._onDidChangeTreeData.fire(undefined);
           } catch (error) {
             this.isLoading = false;
             this._onDidChangeTreeData.fire(undefined);
@@ -116,48 +92,36 @@ export class NoteTreeDataProvider
   }
 
   async refresh(): Promise<void> {
-    try {
-      this.isLoading = true;
-      this._onDidChangeTreeData.fire(undefined);
-      this.notes = [...this.searchResults];
-    } catch (error) {
-      vscode.window.showErrorMessage('Failed to refresh search results');
-      this.logger?.appendLine(`Refresh error: ${error}`);
-    } finally {
-      this.isLoading = false;
-      this._onDidChangeTreeData.fire(undefined);
-    }
+    this._onDidChangeTreeData.fire(undefined);
   }
 
   getTreeItem(element: KibelaNote | AuthItem): vscode.TreeItem {
-    if (this.isLoading) {
-      const item = new vscode.TreeItem(
-        'Loading...',
-        vscode.TreeItemCollapsibleState.None
-      );
-      item.iconPath = new vscode.ThemeIcon('loading~spin');
+    if ('type' in element && element.type === 'auth') {
+      const item = new vscode.TreeItem(element.label);
+      item.command = {
+        command: element.command,
+        title: element.label,
+      };
       return item;
     }
 
-    if ('id' in element && 'title' in element) {
-      return this.createNoteTreeItem(element);
-    }
-
-    this.logger?.appendLine(`Unknown element type: ${JSON.stringify(element)}`);
-    return new vscode.TreeItem(
-      'Error: Unknown Item',
-      vscode.TreeItemCollapsibleState.None
-    );
+    return this.createNoteTreeItem(element as KibelaNote);
   }
 
   getChildren(element?: KibelaNote | AuthItem): (KibelaNote | AuthItem)[] {
-    if (!element) {
-      if (this.isLoading) {
-        return [];
-      }
-      return this.notes;
+    if (element) {
+      return [];
     }
-    return [];
+
+    if (!this.kibelaClient.isAuthenticated()) {
+      return this.authManager.getAuthItems();
+    }
+
+    if (this.isLoading) {
+      return [{ type: 'auth', label: 'Loading...', command: '' }];
+    }
+
+    return this.searchResults;
   }
 
   setNotes(notes: KibelaNote[]) {
@@ -193,29 +157,25 @@ export class NoteTreeDataProvider
         ? {
             id: note.author.id || '',
             account: note.author.account || '',
-            realName: note.author.realName || 'unknown',
+            realName: note.author.realName || '不明',
           }
-        : { id: '', account: '', realName: 'unknown' },
+        : { id: '', account: '', realName: '不明' },
     };
   }
 
   private createNoteTreeItem(note: KibelaNote): vscode.TreeItem {
-    const treeItem = new vscode.TreeItem(
+    const item = new vscode.TreeItem(
       note.title,
       vscode.TreeItemCollapsibleState.None
     );
-    treeItem.iconPath = new vscode.ThemeIcon('note');
-    treeItem.command = {
+    item.command = {
       command: 'kibela.openNote',
       title: 'Open Note',
       arguments: [note],
     };
-    const formattedData = this.formatNoteData(note);
-    const lastUpdated = new Date(
-      formattedData.contentUpdatedAt
-    ).toLocaleDateString('ja-JP');
-    treeItem.description = `${formattedData.author.realName} (${lastUpdated})`;
-    return treeItem;
+    item.tooltip = note.title;
+    item.description = new Date(note.contentUpdatedAt).toLocaleDateString();
+    return item;
   }
 
   clear(): void {
@@ -260,8 +220,11 @@ export class MyNotesTreeDataProvider
   private isLoading = false;
   private logger: vscode.OutputChannel;
 
-  constructor(private kibelaClient: KibelaClient) {
-    this.logger = vscode.window.createOutputChannel('My Notes');
+  constructor(
+    private kibelaClient: KibelaClient,
+    private authManager: AuthManager
+  ) {
+    this.logger = vscode.window.createOutputChannel('Kibela Notes');
 
     this._view = vscode.window.createTreeView('myNotes', {
       treeDataProvider: this,
@@ -271,37 +234,37 @@ export class MyNotesTreeDataProvider
     if (this._view) {
       this._view.title = 'KIBELA NOTES';
     }
-
-    this.kibelaClient.onDidChangeAuthState(() => {
-      this.refresh();
-    });
   }
 
   async refresh(): Promise<void> {
+    if (!this.kibelaClient.isAuthenticated()) {
+      this._onDidChangeTreeData.fire(undefined);
+      return;
+    }
+
     try {
       this.isLoading = true;
       this._onDidChangeTreeData.fire(undefined);
 
-      const myNotes = await this.kibelaClient.getMyNotes();
-      const recentlyViewed = await this.kibelaClient.getRecentlyViewedNotes();
-      const likedNotes = await this.kibelaClient.getLikedNotes();
+      const [myNotes, recentlyViewed, likedNotes] = await Promise.all([
+        this.kibelaClient.getMyNotes(),
+        this.kibelaClient.getRecentlyViewedNotes(),
+        this.kibelaClient.getLikedNotes(),
+      ]);
 
-      const isValidNote = (note: KibelaNote): boolean => {
-        return (
-          note && typeof note === 'object' && 'id' in note && 'title' in note
-        );
-      };
+      const validMyNotes = myNotes.filter(isValidNote);
+      const validRecentlyViewed = recentlyViewed.filter(isValidNote);
+      const validLikedNotes = likedNotes.filter(isValidNote);
 
-      const seenIds = new Set<string>();
-      const uniqueRecentlyViewed = recentlyViewed.filter((note) => {
-        if (!isValidNote(note) || seenIds.has(note.id)) {
+      // Remove duplicates from recentlyViewed
+      const seenNoteIds = new Set<string>();
+      const uniqueRecentlyViewed = validRecentlyViewed.filter((note) => {
+        if (seenNoteIds.has(note.id)) {
           return false;
         }
-        seenIds.add(note.id);
+        seenNoteIds.add(note.id);
         return true;
       });
-
-      const validLikedNotes = likedNotes.filter(isValidNote);
 
       this.sections = [
         {
@@ -309,7 +272,7 @@ export class MyNotesTreeDataProvider
             'My Notes',
             vscode.TreeItemCollapsibleState.Expanded
           ),
-          items: myNotes,
+          items: validMyNotes,
         },
         {
           section: new vscode.TreeItem(
@@ -327,7 +290,11 @@ export class MyNotesTreeDataProvider
         },
       ];
 
-      this.notes = [...myNotes, ...uniqueRecentlyViewed, ...validLikedNotes];
+      this.notes = [
+        ...validMyNotes,
+        ...uniqueRecentlyViewed,
+        ...validLikedNotes,
+      ];
     } catch (error) {
       vscode.window.showErrorMessage('Failed to refresh notes');
       this.logger?.appendLine(`Refresh error: ${error}`);
@@ -338,81 +305,61 @@ export class MyNotesTreeDataProvider
   }
 
   getTreeItem(element: TreeSection | KibelaNote | AuthItem): vscode.TreeItem {
-    if (this.isLoading) {
-      const item = new vscode.TreeItem(
-        'Loading...',
-        vscode.TreeItemCollapsibleState.None
-      );
-      item.iconPath = new vscode.ThemeIcon('loading~spin');
+    if ('type' in element && element.type === 'auth') {
+      const item = new vscode.TreeItem(element.label);
+      item.command = {
+        command: element.command,
+        title: element.label,
+      };
       return item;
     }
 
-    if ('section' in element && 'items' in element) {
+    if ('section' in element) {
       return element.section;
     }
 
-    if ('id' in element && 'title' in element) {
-      return this.createNoteTreeItem(element);
-    }
-
-    this.logger?.appendLine(`Unknown element type: ${JSON.stringify(element)}`);
-    return new vscode.TreeItem(
-      'Error: Unknown Item',
-      vscode.TreeItemCollapsibleState.None
-    );
+    return this.createNoteTreeItem(element as KibelaNote);
   }
 
   getChildren(
     element?: TreeSection | KibelaNote | AuthItem
   ): (TreeSection | KibelaNote | AuthItem)[] {
-    if (!element) {
-      if (this.isLoading) {
-        return [{ section: new vscode.TreeItem('Loading...'), items: [] }];
+    if (element) {
+      if ('section' in element) {
+        return element.items;
       }
-      return this.sections;
+      return [];
     }
 
-    if ('section' in element) {
-      return element.items;
+    if (!this.kibelaClient.isAuthenticated()) {
+      return this.authManager.getAuthItems();
     }
 
-    return [];
+    if (this.isLoading) {
+      return [{ type: 'auth', label: 'Loading...', command: '' }];
+    }
+
+    return this.sections;
   }
 
   private createNoteTreeItem(note: KibelaNote): vscode.TreeItem {
-    const treeItem = new vscode.TreeItem(
+    const item = new vscode.TreeItem(
       note.title,
       vscode.TreeItemCollapsibleState.None
     );
-    treeItem.iconPath = new vscode.ThemeIcon('note');
-    treeItem.command = {
+    item.command = {
       command: 'kibela.openNote',
       title: 'Open Note',
       arguments: [note],
     };
-    const formattedData = this.formatNoteData(note);
-    const lastUpdated = new Date(
-      formattedData.contentUpdatedAt
-    ).toLocaleDateString('ja-JP');
-    treeItem.description = `${formattedData.author.realName} (${lastUpdated})`;
-    return treeItem;
-  }
-
-  private formatNoteData(note: Partial<KibelaNote>) {
-    return {
-      contentUpdatedAt: note.contentUpdatedAt || new Date().toISOString(),
-      author: note.author
-        ? {
-            id: note.author.id || '',
-            account: note.author.account || '',
-            realName: note.author.realName || 'unknown',
-          }
-        : { id: '', account: '', realName: 'unknown' },
-    };
+    item.tooltip = note.title;
+    item.description = new Date(note.contentUpdatedAt).toLocaleDateString();
+    return item;
   }
 
   clear(): void {
+    this.sections = [];
     this.notes = [];
-    this._onDidChangeTreeData.fire(undefined);
+    this.refresh();
   }
 }
