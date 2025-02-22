@@ -149,7 +149,9 @@ export interface Note {
   contentHtml: string;
   contentUpdatedAt: string;
   publishedAt?: string;
+  url: string;
   path: string;
+  isLikedByCurrentUser: boolean;
   author: {
     id: string;
     account: string;

@@ -14,6 +14,8 @@ import {
   GET_USERS,
   SEARCH_NOTES,
   GET_CURRENT_USER,
+  LIKE_NOTE,
+  UNLIKE_NOTE,
 } from './queries';
 import {
   AuthState,
@@ -157,13 +159,17 @@ export class KibelaClient {
     const kibelaError = error as KibelaError;
     if (kibelaError.response?.errors) {
       this.logger.appendLine(
-        JSON.stringify(kibelaError.response.errors, null, 2)
+        `[ERROR] ${method} GraphQL Errors: ${JSON.stringify(kibelaError.response.errors, null, 2)}`
       );
+    }
+
+    if (error instanceof Error && error.stack) {
+      this.logger.appendLine(`[ERROR] ${method} Stack: ${error.stack}`);
     }
 
     if (this.isAuthenticationError(error)) {
       this.handleAuthError(new Error(errorMessage));
-      vscode.window.showErrorMessage('Please login to Kibela to continue');
+      this.logger.appendLine(`[ERROR] ${method}: Authentication error detected`);
     }
   }
 
@@ -488,6 +494,48 @@ export class KibelaClient {
     } catch (error) {
       this.logError('getFolders', error);
       throw new Error('Failed to fetch folders');
+    }
+  }
+
+  async clearNoteCache(noteId: string) {
+    this.noteContentCache.delete(noteId);
+  }
+
+  async likeNote(noteId: string) {
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await this.client.request(LIKE_NOTE, {
+        input: {
+          clientMutationId: `like_${noteId}`,
+          likableId: noteId
+        }
+      });
+      await this.clearNoteCache(noteId);
+    } catch (error) {
+      this.logError('likeNote', error);
+      throw error;
+    }
+  }
+
+  async unlikeNote(noteId: string) {
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      await this.client.request(UNLIKE_NOTE, {
+        input: {
+          clientMutationId: `unlike_${noteId}`,
+          likableId: noteId
+        }
+      });
+      await this.clearNoteCache(noteId);
+    } catch (error) {
+      this.logError('unlikeNote', error);
+      throw error;
     }
   }
 }

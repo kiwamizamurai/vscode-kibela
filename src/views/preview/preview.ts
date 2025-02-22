@@ -40,7 +40,9 @@ export function show(
   publishedAt?: Date,
   groups?: { name: string }[],
   folders?: { fullName: string; path: string }[],
-  attachments?: { name: string; dataUrl: string; mimeType: string }[]
+  attachments?: { name: string; dataUrl: string; mimeType: string }[],
+  noteId?: string,
+  isLikedByCurrentUser?: boolean
 ) {
   const columnToShowIn = vscode.window.activeTextEditor
     ? vscode.window.activeTextEditor.viewColumn
@@ -60,12 +62,14 @@ export function show(
       folders,
       attachments,
       path,
-      title
+      title,
+      noteId,
+      isLikedByCurrentUser
     );
   } else {
     currentPanel = vscode.window.createWebviewPanel(
       viewType,
-      path,
+      title,
       columnToShowIn || vscode.ViewColumn.One,
       {
         enableScripts: true,
@@ -89,12 +93,42 @@ export function show(
       folders,
       attachments,
       path,
-      title
+      title,
+      noteId,
+      isLikedByCurrentUser
     );
 
     currentPanel.onDidDispose(() => {
       currentPanel = undefined;
     }, null);
+  }
+
+  if (currentPanel) {
+    currentPanel.webview.onDidReceiveMessage(
+      async (message: { command: string; noteId: string }) => {
+        if (!currentPanel) return;
+
+        try {
+          switch (message.command) {
+            case 'like':
+              await vscode.commands.executeCommand('kibela.likeNote', message.noteId);
+              currentPanel.webview.postMessage({ command: 'updateLikeState', isLiked: true });
+              break;
+            case 'unlike':
+              await vscode.commands.executeCommand('kibela.unlikeNote', message.noteId);
+              currentPanel.webview.postMessage({ command: 'updateLikeState', isLiked: false });
+              break;
+          }
+        } catch (error) {
+          if (currentPanel) {
+            currentPanel.webview.postMessage({ 
+              command: 'updateLikeState', 
+              isLiked: message.command === 'unlike'
+            });
+          }
+        }
+      }
+    );
   }
 }
 
@@ -113,7 +147,9 @@ function updateContent(
   folders?: { fullName: string; path: string }[],
   attachments?: { name: string; dataUrl: string; mimeType: string }[],
   notePath?: string,
-  title?: string
+  title?: string,
+  noteId?: string,
+  isLikedByCurrentUser?: boolean
 ) {
   const config = vscode.workspace.getConfiguration('kibela');
   const team = config.get<string>('team');
@@ -122,10 +158,15 @@ function updateContent(
   const metadataHtml = `
     <div class="metadata">
       ${
-        baseUrl && notePath
+        baseUrl && notePath && noteId
           ? `<div class="note-link">
               <h1 class="note-title">${title}</h1>
-              <a href="${baseUrl}${notePath}" target="_blank" class="kibela-link" data-url="${baseUrl}${notePath}">View on Kibela</a>
+              <div class="note-actions">
+                <button id="likeButton" class="like-button ${isLikedByCurrentUser ? 'liked' : ''}" data-note-id="${noteId}">
+                  ${isLikedByCurrentUser ? '❤️ Liked' : '🤍 Like'}
+                </button>
+                <a href="${baseUrl}${notePath}" target="_blank" class="kibela-link" data-url="${baseUrl}${notePath}">View on Kibela</a>
+              </div>
             </div>`
           : ''
       }
@@ -419,6 +460,31 @@ function updateContent(
         text-align: center;
         font-size: 14px;
       }
+      .note-actions {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .like-button {
+        padding: 6px 12px;
+        border-radius: 4px;
+        border: 1px solid var(--vscode-border);
+        background: var(--vscode-button-background);
+        color: var(--vscode-button-foreground);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s ease;
+      }
+      .like-button:hover {
+        background: var(--vscode-button-hoverBackground);
+      }
+      .like-button.liked {
+        background: var(--vscode-statusBarItem-warningBackground);
+        color: var(--vscode-statusBarItem-warningForeground);
+      }
     </style>
   `;
 
@@ -434,6 +500,7 @@ function updateContent(
 
   const script = `
     <script>
+      const vscode = acquireVsCodeApi();
       const modal = document.getElementById('imageModal');
       const modalImg = document.getElementById('modalImage');
       const modalCaption = document.getElementById('modalCaption');
@@ -487,6 +554,30 @@ function updateContent(
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && modal.classList.contains('show')) {
           closeModal();
+        }
+      });
+
+      const likeButton = document.getElementById('likeButton');
+      if (likeButton) {
+        likeButton.addEventListener('click', () => {
+          const noteId = likeButton.getAttribute('data-note-id');
+          const isLiked = likeButton.classList.contains('liked');
+          vscode.postMessage({
+            command: isLiked ? 'unlike' : 'like',
+            noteId: noteId
+          });
+        });
+      }
+
+      window.addEventListener('message', event => {
+        const message = event.data;
+        switch (message.command) {
+          case 'updateLikeState':
+            if (likeButton) {
+              likeButton.classList.toggle('liked', message.isLiked);
+              likeButton.textContent = message.isLiked ? '❤️ Liked' : '🤍 Like';
+            }
+            break;
         }
       });
     </script>

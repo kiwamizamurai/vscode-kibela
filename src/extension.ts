@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from './api/kibelaClient';
 import {
-  NoteTreeDataProvider,
   MyNotesTreeDataProvider,
 } from './views/tree/noteTreeView';
 import { SearchTreeDataProvider } from './views/tree/searchTreeView';
@@ -133,7 +132,9 @@ export function activate(context: vscode.ExtensionContext) {
               noteData.publishedAt ? new Date(noteData.publishedAt) : undefined,
               noteData.groups,
               noteData.folders.nodes,
-              noteData.attachments.nodes
+              noteData.attachments.nodes,
+              noteData.id,
+              noteData.isLikedByCurrentUser
             );
           }
         } catch (error) {
@@ -189,6 +190,36 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
       await searchSettings.showSettingsUI();
+    }),
+    vscode.commands.registerCommand('kibela.likeNote', async (noteId: string) => {
+      if (!kibelaClient) {
+        vscode.window.showErrorMessage('Please authenticate first');
+        return;
+      }
+
+      try {
+        await kibelaClient.likeNote(noteId);
+        await kibelaClient.clearNoteCache(noteId);
+        vscode.window.showInformationMessage('Note liked successfully');
+      } catch (error) {
+        vscode.window.showErrorMessage('Failed to like note');
+        throw error;
+      }
+    }),
+    vscode.commands.registerCommand('kibela.unlikeNote', async (noteId: string) => {
+      if (!kibelaClient) {
+        vscode.window.showErrorMessage('Please authenticate first');
+        return;
+      }
+
+      try {
+        await kibelaClient.unlikeNote(noteId);
+        await kibelaClient.clearNoteCache(noteId);
+        vscode.window.showInformationMessage('Note unliked successfully');
+      } catch (error) {
+        vscode.window.showErrorMessage('Failed to unlike note');
+        throw error;
+      }
     })
   );
 

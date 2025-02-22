@@ -204,6 +204,7 @@ export const GET_NOTE = gql`
       publishedAt
       url
       path
+      isLikedByCurrentUser
       attachments(first: 10) {
         nodes {
           id
@@ -290,6 +291,36 @@ export const GET_USERS = gql`
         id
         account
         realName
+      }
+    }
+  }
+`;
+
+export const LIKE_NOTE = gql`
+  mutation LikeNote($input: LikeInput!) {
+    like(input: $input) {
+      clientMutationId
+      likers(first: 10) {
+        nodes {
+          id
+          account
+          realName
+        }
+      }
+    }
+  }
+`;
+
+export const UNLIKE_NOTE = gql`
+  mutation UnlikeNote($input: UnlikeInput!) {
+    unlike(input: $input) {
+      clientMutationId
+      likers(first: 10) {
+        nodes {
+          id
+          account
+          realName
+        }
       }
     }
   }
