@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from './api/kibelaClient';
-import {
-  MyNotesTreeDataProvider,
-} from './views/tree/noteTreeView';
+import { MyNotesTreeDataProvider } from './views/tree/noteTreeView';
 import { SearchTreeDataProvider } from './views/tree/searchTreeView';
 import { GroupTreeProvider } from './views/tree/groupTreeView';
 import { show } from './views/preview/preview';
@@ -191,36 +189,42 @@ export function activate(context: vscode.ExtensionContext) {
       }
       await searchSettings.showSettingsUI();
     }),
-    vscode.commands.registerCommand('kibela.likeNote', async (noteId: string) => {
-      if (!kibelaClient) {
-        vscode.window.showErrorMessage('Please authenticate first');
-        return;
-      }
+    vscode.commands.registerCommand(
+      'kibela.likeNote',
+      async (noteId: string) => {
+        if (!kibelaClient) {
+          vscode.window.showErrorMessage('Please authenticate first');
+          return;
+        }
 
-      try {
-        await kibelaClient.likeNote(noteId);
-        await kibelaClient.clearNoteCache(noteId);
-        vscode.window.showInformationMessage('Note liked successfully');
-      } catch (error) {
-        vscode.window.showErrorMessage('Failed to like note');
-        throw error;
+        try {
+          await kibelaClient.likeNote(noteId);
+          await kibelaClient.clearNoteCache(noteId);
+          vscode.window.showInformationMessage('Note liked successfully');
+        } catch (error) {
+          vscode.window.showErrorMessage('Failed to like note');
+          throw error;
+        }
       }
-    }),
-    vscode.commands.registerCommand('kibela.unlikeNote', async (noteId: string) => {
-      if (!kibelaClient) {
-        vscode.window.showErrorMessage('Please authenticate first');
-        return;
-      }
+    ),
+    vscode.commands.registerCommand(
+      'kibela.unlikeNote',
+      async (noteId: string) => {
+        if (!kibelaClient) {
+          vscode.window.showErrorMessage('Please authenticate first');
+          return;
+        }
 
-      try {
-        await kibelaClient.unlikeNote(noteId);
-        await kibelaClient.clearNoteCache(noteId);
-        vscode.window.showInformationMessage('Note unliked successfully');
-      } catch (error) {
-        vscode.window.showErrorMessage('Failed to unlike note');
-        throw error;
+        try {
+          await kibelaClient.unlikeNote(noteId);
+          await kibelaClient.clearNoteCache(noteId);
+          vscode.window.showInformationMessage('Note unliked successfully');
+        } catch (error) {
+          vscode.window.showErrorMessage('Failed to unlike note');
+          throw error;
+        }
       }
-    })
+    )
   );
 
   authManager.initialize();

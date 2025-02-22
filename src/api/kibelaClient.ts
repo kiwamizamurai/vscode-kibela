@@ -159,7 +159,11 @@ export class KibelaClient {
     const kibelaError = error as KibelaError;
     if (kibelaError.response?.errors) {
       this.logger.appendLine(
-        `[ERROR] ${method} GraphQL Errors: ${JSON.stringify(kibelaError.response.errors, null, 2)}`
+        `[ERROR] ${method} GraphQL Errors: ${JSON.stringify(
+          kibelaError.response.errors,
+          null,
+          2
+        )}`
       );
     }
 
@@ -169,7 +173,9 @@ export class KibelaClient {
 
     if (this.isAuthenticationError(error)) {
       this.handleAuthError(new Error(errorMessage));
-      this.logger.appendLine(`[ERROR] ${method}: Authentication error detected`);
+      this.logger.appendLine(
+        `[ERROR] ${method}: Authentication error detected`
+      );
     }
   }
 
@@ -510,8 +516,8 @@ export class KibelaClient {
       await this.client.request(LIKE_NOTE, {
         input: {
           clientMutationId: `like_${noteId}`,
-          likableId: noteId
-        }
+          likableId: noteId,
+        },
       });
       await this.clearNoteCache(noteId);
     } catch (error) {
@@ -529,8 +535,8 @@ export class KibelaClient {
       await this.client.request(UNLIKE_NOTE, {
         input: {
           clientMutationId: `unlike_${noteId}`,
-          likableId: noteId
-        }
+          likableId: noteId,
+        },
       });
       await this.clearNoteCache(noteId);
     } catch (error) {

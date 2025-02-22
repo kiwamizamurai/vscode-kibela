@@ -111,19 +111,31 @@ export function show(
         try {
           switch (message.command) {
             case 'like':
-              await vscode.commands.executeCommand('kibela.likeNote', message.noteId);
-              currentPanel.webview.postMessage({ command: 'updateLikeState', isLiked: true });
+              await vscode.commands.executeCommand(
+                'kibela.likeNote',
+                message.noteId
+              );
+              currentPanel.webview.postMessage({
+                command: 'updateLikeState',
+                isLiked: true,
+              });
               break;
             case 'unlike':
-              await vscode.commands.executeCommand('kibela.unlikeNote', message.noteId);
-              currentPanel.webview.postMessage({ command: 'updateLikeState', isLiked: false });
+              await vscode.commands.executeCommand(
+                'kibela.unlikeNote',
+                message.noteId
+              );
+              currentPanel.webview.postMessage({
+                command: 'updateLikeState',
+                isLiked: false,
+              });
               break;
           }
         } catch (error) {
           if (currentPanel) {
-            currentPanel.webview.postMessage({ 
-              command: 'updateLikeState', 
-              isLiked: message.command === 'unlike'
+            currentPanel.webview.postMessage({
+              command: 'updateLikeState',
+              isLiked: message.command === 'unlike',
             });
           }
         }
@@ -158,7 +170,7 @@ function updateContent(
     content = content.replace(
       /<img[^>]*?title="([^"]*)"[^>]*?>/g,
       (match, imgTitle) => {
-        const attachment = attachments.find(a => a.name === imgTitle);
+        const attachment = attachments.find((a) => a.name === imgTitle);
         if (attachment) {
           return `<img src="${attachment.dataUrl}" alt="${attachment.name}" title="${attachment.name}">`;
         }
@@ -178,7 +190,9 @@ function updateContent(
           ? `<div class="note-link">
               <h1 class="note-title">${title}</h1>
               <div class="note-actions">
-                <button id="likeButton" class="like-button ${isLikedByCurrentUser ? 'liked' : ''}" data-note-id="${noteId}">
+                <button id="likeButton" class="like-button ${
+                  isLikedByCurrentUser ? 'liked' : ''
+                }" data-note-id="${noteId}">
                   ${isLikedByCurrentUser ? '❤️ Liked' : '🤍 Like'}
                 </button>
                 <a href="${baseUrl}${notePath}" target="_blank" class="kibela-link" data-url="${baseUrl}${notePath}">View on Kibela</a>
