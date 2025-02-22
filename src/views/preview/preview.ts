@@ -151,6 +151,22 @@ function updateContent(
   noteId?: string,
   isLikedByCurrentUser?: boolean
 ) {
+  console.log('Preview content:', content);
+
+  // Transform img tags in content using attachments
+  if (attachments?.length) {
+    content = content.replace(
+      /<img[^>]*?title="([^"]*)"[^>]*?>/g,
+      (match, imgTitle) => {
+        const attachment = attachments.find(a => a.name === imgTitle);
+        if (attachment) {
+          return `<img src="${attachment.dataUrl}" alt="${attachment.name}" title="${attachment.name}">`;
+        }
+        return match;
+      }
+    );
+  }
+
   const config = vscode.workspace.getConfiguration('kibela');
   const team = config.get<string>('team');
   const baseUrl = team ? `https://${team}.kibe.la` : '';
@@ -212,39 +228,6 @@ function updateContent(
               )
               .join('')}
           </ul>
-        </div>
-      `
-          : ''
-      }
-
-      ${
-        attachments?.length
-          ? `
-        <div class="attachments">
-          <h3>Attachments</h3>
-          <div class="attachment-grid">
-            ${attachments
-              .map((attachment) => {
-                if (attachment.mimeType.startsWith('image/')) {
-                  return `
-                  <div class="attachment-item">
-                    <img src="${attachment.dataUrl}" alt="${attachment.name}" title="${attachment.name}">
-                    <div class="attachment-name">${attachment.name}</div>
-                  </div>
-                `;
-                }
-                return `
-                  <div class="attachment-item">
-                    <div class="attachment-file">
-                      <span class="file-icon">📄</span>
-                      <div class="attachment-name">${attachment.name}</div>
-                      <div class="attachment-type">${attachment.mimeType}</div>
-                    </div>
-                  </div>
-                `;
-              })
-              .join('')}
-          </div>
         </div>
       `
           : ''

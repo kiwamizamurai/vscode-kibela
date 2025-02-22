@@ -67,6 +67,8 @@ export interface KibelaAttachment {
   id: string;
   name: string;
   url: string;
+  dataUrl: string;
+  mimeType: string;
   contentType: string;
   size: number;
 }
