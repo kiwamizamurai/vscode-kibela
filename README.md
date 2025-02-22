@@ -30,6 +30,8 @@ Access, search, and manage your Kibela notes directly from your development envi
   - Comments thread
   - File attachments with preview
   - Group and folder information
+- ❤️ **Note Interaction**
+  - Like and unlike notes
 
 ## 🚀 Getting Started
 
@@ -65,8 +67,6 @@ Get your API token from:
   - [ ] Reply to comments
 - 🔄 Sync
   - [ ] Real-time updates
-- 📎 Attachments
-  - [ ] Image preview
 </details>
 
 ## 🤝 Contributing
