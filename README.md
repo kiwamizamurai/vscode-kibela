@@ -45,7 +45,7 @@
 
 
 > [!TIP]
-> この拡張機能は、KibelaのAPIと対話するために`graphql`パッケージの`buildClientSchema`、`getIntrospectionQuery`、`printSchema`を使用してGraphQLスキーマイントロスペクションを行います。[詳細はこちら](https://github.com/kiwamizamurai/vscode-kibela/blob/main/reverse_engineering/main.ts)
+> この拡張機能は、KibelaのAPIをリバースエンジニアリングするために`graphql`パッケージの`buildClientSchema`、`getIntrospectionQuery`、`printSchema`を使用してGraphQLスキーマイントロスペクションを行っています。[詳細はこちら](https://github.com/kiwamizamurai/vscode-kibela/blob/main/reverse_engineering/main.ts)
 
 ## 今後追加予定の機能
 <details>
