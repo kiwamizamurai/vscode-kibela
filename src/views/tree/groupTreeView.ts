@@ -1,17 +1,15 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from '../../api/kibelaClient';
-import { AuthManager, AuthItem } from '../../features/auth/auth';
+import { AuthItem, AuthManager } from '../../features/auth/auth';
 
 export class GroupTreeProvider
-  implements vscode.TreeDataProvider<GroupTreeItem | AuthItem>
+  implements vscode.TreeDataProvider<GroupTreeItem | AuthItem | null>
 {
   private _onDidChangeTreeData: vscode.EventEmitter<
-    GroupTreeItem | AuthItem | undefined | null | void
-  > = new vscode.EventEmitter<
-    GroupTreeItem | AuthItem | undefined | null | void
-  >();
+    GroupTreeItem | AuthItem | undefined | null
+  > = new vscode.EventEmitter<GroupTreeItem | AuthItem | undefined | null>();
   readonly onDidChangeTreeData: vscode.Event<
-    GroupTreeItem | AuthItem | undefined | null | void
+    GroupTreeItem | AuthItem | undefined | null
   > = this._onDidChangeTreeData.event;
 
   constructor(
@@ -20,7 +18,7 @@ export class GroupTreeProvider
   ) {}
 
   refresh(): void {
-    this._onDidChangeTreeData.fire();
+    this._onDidChangeTreeData.fire(undefined);
   }
 
   getTreeItem(element: GroupTreeItem | AuthItem): vscode.TreeItem {
@@ -52,13 +50,11 @@ export class GroupTreeProvider
               group.name,
               'group',
               group.id,
-              vscode.TreeItemCollapsibleState.Collapsed,
-              undefined,
-              undefined,
-              group.description || ''
+              vscode.TreeItemCollapsibleState.Collapsed
             )
         );
-      } else if (element.type === 'group') {
+      }
+      if (element.type === 'group') {
         // Group level - show folders and notes
         const [folders, notes] = await Promise.all([
           this.kibelaClient.getGroupFolders(element.id),
@@ -106,13 +102,16 @@ export class GroupTreeProvider
         );
 
         return items;
-      } else if (element.type === 'folder') {
+      }
+      if (element.type === 'folder') {
         // Folder level - show notes and subfolders
         const pathParts = element.id.split('/');
         const folderId = pathParts[pathParts.length - 1];
         const [notes, subFolders] = await Promise.all([
           this.kibelaClient.getFolderNotes(folderId),
-          this.kibelaClient.getGroupFolders(element.parentId!, folderId),
+          element.parentId
+            ? this.kibelaClient.getGroupFolders(element.parentId, folderId)
+            : Promise.resolve([]),
         ]);
 
         const items: GroupTreeItem[] = [];
@@ -166,7 +165,7 @@ export class GroupTreeProvider
   }
 
   clear(): void {
-    this._onDidChangeTreeData.fire();
+    this._onDidChangeTreeData.fire(undefined);
   }
 }
 
@@ -175,7 +174,8 @@ class GroupTreeItem extends vscode.TreeItem {
     public readonly label: string,
     public readonly type: 'group' | 'folder' | 'note',
     public readonly id: string,
-    public readonly collapsibleState: vscode.TreeItemCollapsibleState,
+    public readonly collapsibleState: vscode.TreeItemCollapsibleState = vscode
+      .TreeItemCollapsibleState.None,
     public readonly parentId?: string,
     public readonly command?: vscode.Command,
     description?: string

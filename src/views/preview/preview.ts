@@ -173,11 +173,10 @@ function updateContent(
   noteId?: string,
   isLikedByCurrentUser?: boolean
 ) {
-  console.log('Preview content:', content);
-
+  let updatedContent = content;
   // Transform img tags in content using attachments
   if (attachments?.length) {
-    content = content.replace(
+    updatedContent = updatedContent.replace(
       /<img[^>]*?title="([^"]*)"[^>]*?>/g,
       (match, imgTitle) => {
         const attachment = attachments.find((a) => a.name === imgTitle);
@@ -190,7 +189,7 @@ function updateContent(
   }
 
   // Kibelaノートリンクをhrefなしのカスタム要素に変換
-  content = content.replace(
+  updatedContent = updatedContent.replace(
     /<a[^>]*?href="[^"]*?kibe\.la\/notes\/(\d+)[^"]*"[^>]*?>([^<]*(?:<(?!\/a>)[^<]*)*)<\/a>/g,
     (_, noteId, innerContent) => {
       return `<span class="kibela-note-link" data-path="/notes/${noteId}" style="color: var(--vscode-textLink-foreground); cursor: pointer;">${innerContent}</span>`;
@@ -564,7 +563,7 @@ function updateContent(
     </script>
   `;
 
-  console.log('Preview content:', content);
+  console.log('Preview content:', updatedContent);
 
   panel.webview.html = `
     <!DOCTYPE html>
@@ -577,7 +576,7 @@ function updateContent(
     <body>
       ${metadataHtml}
       <div class="content">
-        ${content}
+        ${updatedContent}
       </div>
       ${commentsHtml ? `<div class="comments">${commentsHtml}</div>` : ''}
       ${modalHtml}

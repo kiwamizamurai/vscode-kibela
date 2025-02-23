@@ -1,22 +1,3 @@
-import {
-  KibelaNote,
-  KibelaGroup,
-  KibelaUser,
-  KibelaFolder,
-  NoteContent,
-} from '../types';
-
-type CacheableType =
-  | KibelaNote
-  | KibelaGroup
-  | KibelaUser
-  | KibelaFolder
-  | NoteContent
-  | KibelaNote[]
-  | KibelaGroup[]
-  | KibelaUser[]
-  | KibelaFolder[];
-
 interface CacheEntry<T> {
   data: T;
   timestamp: number;
