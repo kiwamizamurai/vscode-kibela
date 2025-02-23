@@ -1,16 +1,13 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from './api/kibelaClient';
-import {
-  NoteTreeDataProvider,
-  MyNotesTreeDataProvider,
-} from './views/tree/noteTreeView';
-import { SearchTreeDataProvider } from './views/tree/searchTreeView';
-import { GroupTreeProvider } from './views/tree/groupTreeView';
-import { show } from './views/preview/preview';
-import { KibelaNote } from './types';
+import { AuthManager } from './features/auth/auth';
 import { SearchHistory } from './features/search/searchHistory';
 import { SearchSettingsManager } from './features/search/settings';
-import { AuthManager } from './features/auth/auth';
+import { KibelaNote } from './types';
+import { show } from './views/preview/preview';
+import { GroupTreeProvider } from './views/tree/groupTreeView';
+import { MyNotesTreeDataProvider } from './views/tree/noteTreeView';
+import { SearchTreeDataProvider } from './views/tree/searchTreeView';
 
 let kibelaClient: KibelaClient;
 let searchTreeDataProvider: SearchTreeDataProvider;
@@ -27,8 +24,12 @@ export function activate(context: vscode.ExtensionContext) {
   authManager = new AuthManager(context);
 
   const initializeTreeViews = () => {
-    kibelaClient = authManager.getClient()!;
-    if (!kibelaClient || !kibelaClient.isAuthenticated()) {
+    const client = authManager.getClient();
+    if (!client) {
+      return;
+    }
+    kibelaClient = client;
+    if (!kibelaClient.isAuthenticated()) {
       log.appendLine(
         'Client not authenticated, skipping tree view initialization'
       );

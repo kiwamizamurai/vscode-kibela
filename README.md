@@ -2,77 +2,69 @@
 
 <div align="center">
 
+[英語](./README_EN.md) | 日本語
+
 ![logo](./media/kibela.png)
 
-🚀 A powerful VSCode extension for seamless Kibela integration.
-Access, search, and manage your Kibela notes directly from your development environment.
+🚀 シームレスなKibela統合を実現するパワフルなVSCode拡張機能。
+開発環境から直接Kibelaのノートにアクセス、検索、管理が可能です。
 
 [![Version](https://img.shields.io/visual-studio-marketplace/v/kiwamizamurai-vscode.kibela-vscode)](https://marketplace.visualstudio.com/items?itemName=kiwamizamurai-vscode.kibela-vscode)
 [![Downloads](https://img.shields.io/visual-studio-marketplace/d/kiwamizamurai-vscode.kibela-vscode)](https://marketplace.visualstudio.com/items?itemName=kiwamizamurai-vscode.kibela-vscode)
 [![Rating](https://img.shields.io/visual-studio-marketplace/r/kiwamizamurai-vscode.kibela-vscode)](https://marketplace.visualstudio.com/items?itemName=kiwamizamurai-vscode.kibela-vscode)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 </div>
 
-## ✨ Features
+## ✨ 機能
+- 🔍 **高度な検索**
+  - リアルタイム検索と履歴
+  - カスタマイズ可能なフィルター（アーカイブ、リソースタイプ）
+  - 関連性または最新順でソート
+  - フォルダーやユーザーでフィルタリング
 
-- 🔍 **Advanced Search**
-  - Real-time search with history
-  - Customizable filters (archived, resource types)
-  - Sort by relevance or recency
-  - Filter by folders and users
-- 📁 **Smart Organization**
-  - Personal and group notes
-  - Folder hierarchy
-  - Recently viewed notes
-- 🖥️ **Rich Preview**
-  - Note content with metadata
-  - Comments thread
-  - File attachments with preview
-  - Group and folder information
-- ❤️ **Note Interaction**
-  - Like and unlike notes
+- 📁 **スマートな整理**
+  - 個人用・グループノート
+  - フォルダー階層
+  - 最近表示したノート
 
-## 🚀 Getting Started
+- 🖥️ **リッチプレビュー**
+  - メタデータ付きノート内容
+  - コメントスレッド
+  - プレビュー付きファイル添付
+  - グループとフォルダー情報
 
-1. Install the extension from VSCode Marketplace
-2. Run `Kibela: Authenticate` command
-3. Enter your team name and API token
-4. Start using Kibela directly in VSCode!
+- ❤️ **ノートインタラクション**
+  - ノートのいいね/いいね解除
 
-## 🔑 Authentication
+## 🚀 はじめ方
+1. VSCode マーケットプレイスから拡張機能をインストール
+2. `Kibela: Authenticate` コマンドを実行
+3. チーム名とAPIトークンを入力
+    - [APIトークンの生成方法](https://github.com/kibela/kibela-api-v1-document?tab=readme-ov-file#%E3%82%A2%E3%82%AF%E3%82%BB%E3%82%B9%E3%83%88%E3%83%BC%E3%82%AF%E3%83%B3)
+4. VSCodeで直接Kibelaの利用開始！
 
-Get your API token from:
-1. Go to Kibela Settings
-2. Navigate to API Tokens
-3. Generate a new token
-
-- [How to generate api token](https://github.com/kibela/kibela-api-v1-document?tab=readme-ov-file#%E3%82%A2%E3%82%AF%E3%82%BB%E3%82%B9%E3%83%88%E3%83%BC%E3%82%AF%E3%83%B3)
 
 > [!TIP]
-> This extension uses GraphQL schema introspection with `buildClientSchema`, `getIntrospectionQuery`, and `printSchema` from the `graphql` package to interact with Kibela's API. [For more detail](https://github.com/kiwamizamurai/vscode-kibela/blob/main/reverse_engineering/main.ts)
+> この拡張機能は、KibelaのAPIと対話するために`graphql`パッケージの`buildClientSchema`、`getIntrospectionQuery`、`printSchema`を使用してGraphQLスキーマイントロスペクションを行います。[詳細はこちら](https://github.com/kiwamizamurai/vscode-kibela/blob/main/reverse_engineering/main.ts)
 
-## Upcoming Features
+## 今後追加予定の機能
 <details>
-<summary>Here</summary>
+<summary>こちら</summary>
 
-- 📝 Note Management
-  - [ ] Create new notes
-  - [ ] Edit/Update existing notes
-  - [ ] Delete notes
-  - [ ] Draft support
-- 💬 Comments
-  - [ ] Add new comments
-  - [ ] Edit/Delete comments
-  - [ ] Reply to comments
-- 🔄 Sync
-  - [ ] Real-time updates
+- 📝 ノート管理
+  - [ ] 新規ノート作成
+  - [ ] 既存ノートの編集/更新
+  - [ ] ノート削除
+  - [ ] 下書きサポート
+
+- 💬 コメント
+  - [ ] 新規コメント追加
+  - [ ] コメントの編集/削除
+  - [ ] コメントへの返信
+
+- 🔄 同期
+  - [ ] リアルタイム更新
 </details>
 
-## 🤝 Contributing
-
-Contributions welcome! Please read our [contributing guidelines](CONTRIBUTING.md).
-
-## 📝 License
-
-MIT
+## 🤝 コントリビューション
+コントリビューションを歓迎します！[コントリビューションガイドライン](CONTRIBUTING.md)をご確認ください。

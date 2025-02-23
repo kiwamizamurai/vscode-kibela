@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from '../../api/kibelaClient';
-import { KibelaNote } from '../../types';
+import { AuthItem, AuthManager } from '../../features/auth/auth';
 import { SearchHistory } from '../../features/search/searchHistory';
 import { SearchSettingsManager } from '../../features/search/settings';
-import { AuthManager, AuthItem } from '../../features/auth/auth';
+import { KibelaNote } from '../../types';
 
 const isValidNote = (note: KibelaNote): boolean => {
   return note && typeof note === 'object' && 'id' in note && 'title' in note;

@@ -1,23 +1,5 @@
 import { GraphQLClient } from 'graphql-request';
 import * as vscode from 'vscode';
-import { CacheManager } from '../utils/cache';
-import {
-  GET_FOLDER_NOTES,
-  GET_GROUPS,
-  GET_GROUP_FOLDERS,
-  GET_GROUP_NOTES,
-  GET_LIKED_NOTES,
-  GET_MY_NOTES,
-  GET_NOTE,
-  GET_NOTE_CONTENT,
-  GET_RECENTLY_VIEWED_NOTES,
-  GET_USERS,
-  SEARCH_NOTES,
-  GET_CURRENT_USER,
-  LIKE_NOTE,
-  UNLIKE_NOTE,
-  GET_NOTE_FROM_PATH,
-} from './queries';
 import {
   AuthState,
   CurrentUserResponse,
@@ -32,7 +14,6 @@ import {
   KibelaUser,
   Note,
   NoteBrowsingHistoryResponse,
-  NoteComment,
   NoteContent,
   NoteContentResponse,
   NoteResponse,
@@ -40,6 +21,24 @@ import {
   SearchResponse,
   UsersResponse,
 } from '../types';
+import { CacheManager } from '../utils/cache';
+import {
+  GET_CURRENT_USER,
+  GET_FOLDER_NOTES,
+  GET_GROUPS,
+  GET_GROUP_FOLDERS,
+  GET_GROUP_NOTES,
+  GET_LIKED_NOTES,
+  GET_MY_NOTES,
+  GET_NOTE,
+  GET_NOTE_CONTENT,
+  GET_NOTE_FROM_PATH,
+  GET_RECENTLY_VIEWED_NOTES,
+  GET_USERS,
+  LIKE_NOTE,
+  SEARCH_NOTES,
+  UNLIKE_NOTE,
+} from './queries';
 
 export interface SearchSettings {
   coediting?: boolean;

@@ -116,18 +116,17 @@ export class AuthManager {
       return [
         {
           type: 'auth',
-          label: 'Logout',
-          command: 'kibela.logout',
-        },
-      ];
-    } else {
-      return [
-        {
-          type: 'auth',
-          label: 'Login to Kibela',
-          command: 'kibela.authenticate',
+          label: 'Sign out from Kibela',
+          command: 'kibela-vscode.signOut',
         },
       ];
     }
+    return [
+      {
+        type: 'auth',
+        label: 'Sign in to Kibela',
+        command: 'kibela-vscode.signIn',
+      },
+    ];
   }
 }
