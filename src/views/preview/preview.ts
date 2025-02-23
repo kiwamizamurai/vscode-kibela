@@ -105,7 +105,7 @@ export function show(
 
   if (currentPanel) {
     currentPanel.webview.onDidReceiveMessage(
-      async (message: { command: string; noteId: string }) => {
+      async (message: { command: string; noteId: string; path?: string }) => {
         if (!currentPanel) return;
 
         try {
@@ -130,13 +130,23 @@ export function show(
                 isLiked: false,
               });
               break;
+            case 'openNote':
+              if (message.path) {
+                await vscode.commands.executeCommand(
+                  'kibela.openNoteFromPath',
+                  message.path
+                );
+              }
+              break;
           }
         } catch (error) {
           if (currentPanel) {
-            currentPanel.webview.postMessage({
-              command: 'updateLikeState',
-              isLiked: message.command === 'unlike',
-            });
+            if (message.command === 'like' || message.command === 'unlike') {
+              currentPanel.webview.postMessage({
+                command: 'updateLikeState',
+                isLiked: message.command === 'unlike',
+              });
+            }
           }
         }
       }
@@ -178,6 +188,14 @@ function updateContent(
       }
     );
   }
+
+  // Kibelaノートリンクをhrefなしのカスタム要素に変換
+  content = content.replace(
+    /<a[^>]*?href="[^"]*?kibe\.la\/notes\/(\d+)[^"]*"[^>]*?>([^<]*(?:<(?!\/a>)[^<]*)*)<\/a>/g,
+    (_, noteId, innerContent) => {
+      return `<span class="kibela-note-link" data-path="/notes/${noteId}" style="color: var(--vscode-textLink-foreground); cursor: pointer;">${innerContent}</span>`;
+    }
+  );
 
   const config = vscode.workspace.getConfiguration('kibela');
   const team = config.get<string>('team');
@@ -325,57 +343,10 @@ function updateContent(
         border-radius: 3px;
         font-size: 0.9em;
       }
-      .groups h3, .folders h3, .attachments h3 {
+      .groups h3, .folders h3, h3 {
         margin: 10px 0 5px;
         font-size: 1em;
         color: var(--vscode-foreground);
-      }
-      .attachment-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-        gap: 16px;
-        margin-top: 10px;
-      }
-      .attachment-item {
-        border: 1px solid var(--vscode-border);
-        border-radius: 6px;
-        padding: 8px;
-        background: var(--vscode-sideBar-background);
-        transition: all 0.2s ease;
-        cursor: pointer;
-      }
-      .attachment-item:hover {
-        box-shadow: 0 2px 8px var(--vscode-widget-shadow);
-      }
-      .attachment-item img {
-        width: 100%;
-        height: auto;
-        max-height: 150px;
-        object-fit: contain;
-        border-radius: 4px;
-        background: var(--vscode-background);
-      }
-      .attachment-name {
-        margin-top: 8px;
-        font-size: 0.9em;
-        color: var(--vscode-foreground);
-        word-break: break-word;
-        text-align: center;
-      }
-      .attachment-file {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding: 16px;
-      }
-      .file-icon {
-        font-size: 2em;
-        margin-bottom: 8px;
-      }
-      .attachment-type {
-        font-size: 0.8em;
-        color: var(--vscode-secondary-text);
-        margin-top: 4px;
       }
       .content img {
         max-width: 100%;
@@ -503,8 +474,21 @@ function updateContent(
       const modalCaption = document.getElementById('modalCaption');
       const closeBtn = document.querySelector('.modal-close');
 
+      // Kibelaノートリンクのクリックハンドラ
+      document.querySelectorAll('.kibela-note-link').forEach(link => {
+        link.addEventListener('click', () => {
+          const path = link.getAttribute('data-path');
+          if (path) {
+            vscode.postMessage({
+              command: 'openNote',
+              path: path
+            });
+          }
+        });
+      });
+
       // Add context menu for Kibela link
-      document.querySelector('.kibela-link').addEventListener('contextmenu', function(e) {
+      document.querySelector('.kibela-link')?.addEventListener('contextmenu', function(e) {
         e.preventDefault();
         const url = this.getAttribute('data-url');
         navigator.clipboard.writeText(url).then(() => {
@@ -579,6 +563,8 @@ function updateContent(
       });
     </script>
   `;
+
+  console.log('Preview content:', content);
 
   panel.webview.html = `
     <!DOCTYPE html>

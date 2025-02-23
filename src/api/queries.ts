@@ -325,3 +325,56 @@ export const UNLIKE_NOTE = gql`
     }
   }
 `;
+
+export const GET_NOTE_FROM_PATH = gql`
+  query GetNoteFromPath($path: String!) {
+    noteFromPath(path: $path) {
+      id
+      title
+      content
+      contentHtml
+      contentUpdatedAt
+      publishedAt
+      url
+      path
+      isLikedByCurrentUser
+      attachments(first: 10) {
+        nodes {
+          id
+          name
+          dataUrl
+          mimeType
+        }
+      }
+      author {
+        id
+        account
+        realName
+      }
+      groups {
+        id
+        name
+      }
+      folders(first: 100) {
+        nodes {
+          id
+          name
+          fullName
+          path
+        }
+      }
+      comments(first: 100) {
+        nodes {
+          id
+          content
+          contentHtml
+          author {
+            account
+            realName
+          }
+          createdAt
+        }
+      }
+    }
+  }
+`;

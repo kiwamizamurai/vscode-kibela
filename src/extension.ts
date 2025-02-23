@@ -1,6 +1,9 @@
 import * as vscode from 'vscode';
 import { KibelaClient } from './api/kibelaClient';
-import { MyNotesTreeDataProvider } from './views/tree/noteTreeView';
+import {
+  NoteTreeDataProvider,
+  MyNotesTreeDataProvider,
+} from './views/tree/noteTreeView';
 import { SearchTreeDataProvider } from './views/tree/searchTreeView';
 import { GroupTreeProvider } from './views/tree/groupTreeView';
 import { show } from './views/preview/preview';
@@ -222,6 +225,38 @@ export function activate(context: vscode.ExtensionContext) {
         } catch (error) {
           vscode.window.showErrorMessage('Failed to unlike note');
           throw error;
+        }
+      }
+    ),
+    vscode.commands.registerCommand(
+      'kibela.openNoteFromPath',
+      async (path: string) => {
+        if (!kibelaClient) {
+          vscode.window.showErrorMessage('Please authenticate first');
+          return;
+        }
+
+        try {
+          const noteData = await kibelaClient.getNoteFromPath(path);
+          if (noteData) {
+            show(
+              noteData.contentHtml,
+              noteData.title,
+              noteData.path,
+              noteData.comments.nodes,
+              noteData.author,
+              new Date(noteData.contentUpdatedAt),
+              noteData.publishedAt ? new Date(noteData.publishedAt) : undefined,
+              noteData.groups,
+              noteData.folders.nodes,
+              noteData.attachments.nodes,
+              noteData.id,
+              noteData.isLikedByCurrentUser
+            );
+          }
+        } catch (error) {
+          log.appendLine(`Error opening note from path: ${error}`);
+          vscode.window.showErrorMessage('Failed to load note content');
         }
       }
     )

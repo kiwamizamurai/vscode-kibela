@@ -16,6 +16,7 @@ import {
   GET_CURRENT_USER,
   LIKE_NOTE,
   UNLIKE_NOTE,
+  GET_NOTE_FROM_PATH,
 } from './queries';
 import {
   AuthState,
@@ -542,6 +543,25 @@ export class KibelaClient {
     } catch (error) {
       this.logError('unlikeNote', error);
       throw error;
+    }
+  }
+
+  async getNoteFromPath(path: string): Promise<Note> {
+    if (!this.isAuthenticated()) {
+      throw new Error('Not authenticated');
+    }
+
+    try {
+      const data = await this.client.request<{ noteFromPath: Note }>(
+        GET_NOTE_FROM_PATH,
+        {
+          path,
+        }
+      );
+      return data.noteFromPath;
+    } catch (error) {
+      this.logError('getNoteFromPath', error);
+      throw new Error('Failed to fetch note from path');
     }
   }
 }
